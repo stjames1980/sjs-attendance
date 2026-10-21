@@ -1,5 +1,5 @@
 // SJS Attendance – offline cache. Change VERSION when you upload new app files.
-const VERSION = "sjs-v1";
+const VERSION = "sjs-v2";
 const SHELL = ["./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png"];
 const CDN = ["fonts.googleapis.com", "fonts.gstatic.com", "www.gstatic.com", "cdn.jsdelivr.net"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
