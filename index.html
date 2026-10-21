@@ -1,0 +1,798 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1E3A8A">
+<meta name="description" content="St. James H.S. School attendance register — AM/PM marking, dashboard, fines.">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>SJS Attendance</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one-column phone app — sticky header, scrolling view, fixed bottom tab bar. */
+:root{
+  --bg:#F3F5F9; --surface:#FFFFFF; --sunk:#E8ECF3; --line:#D6DCE6;
+  --ink:#14213D; --muted:#5B6782; --navy:#1E3A8A; --navy-ink:#FFFFFF;
+  --present:#15803D; --present-bg:#DCFCE7; --absent:#DC2626; --absent-bg:#FEE2E2;
+  --leave:#2563EB; --leave-bg:#DBEAFE; --half:#B45309; --half-bg:#FEF3C7;
+  --gold:#F5C542;
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"Figtree", "Segoe UI", system-ui, sans-serif;
+  --r:14px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E1424; --surface:#172036; --sunk:#1F2A44; --line:#2C3A5A;
+  --ink:#E8EDF7; --muted:#9AA7C2; --navy:#3B5BCC; --navy-ink:#FFFFFF;
+  --present:#4ADE80; --present-bg:#143524; --absent:#F87171; --absent-bg:#3D1717;
+  --leave:#7AA7FF; --leave-bg:#18294D; --half:#FBBF24; --half-bg:#3A2B0F; --gold:#F5C542;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E1424; --surface:#172036; --sunk:#1F2A44; --line:#2C3A5A;
+  --ink:#E8EDF7; --muted:#9AA7C2; --navy:#3B5BCC; --navy-ink:#FFFFFF;
+  --present:#4ADE80; --present-bg:#143524; --absent:#F87171; --absent-bg:#3D1717;
+  --leave:#7AA7FF; --leave-bg:#18294D; --half:#FBBF24; --half-bg:#3A2B0F; --gold:#F5C542;
+  color-scheme:dark}
+html,body{height:100%}
+*{box-sizing:border-box}
+:root{padding-top:env(safe-area-inset-top,0px)}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;-webkit-tap-highlight-color:transparent}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--navy)}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.wrap{max-width:640px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--navy);color:var(--navy-ink)}
+header.top .wrap{padding-block:12px 14px;display:flex;align-items:center;gap:12px}
+.crest{width:38px;height:38px;border-radius:10px;background:var(--gold);color:#1E3A8A;display:grid;place-items:center;font-family:var(--f-display);font-weight:800;font-size:15px;flex:none}
+.top h1{font-family:var(--f-display);font-weight:800;font-size:18px;margin:0;line-height:1.1;letter-spacing:.2px}
+.top .sub{font-size:12px;opacity:.85;margin-top:2px}
+.top .grow{flex:1;min-width:0}
+.classbtn{margin-top:4px;border:0;background:rgba(255,255,255,.16);color:var(--navy-ink);border-radius:99px;padding:4px 10px;font-size:12.5px;font-weight:700;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.classlist .stu[aria-current="true"]{border-color:var(--navy);border-width:2px}
+.pill-ro{font-size:11px;background:rgba(255,255,255,.18);padding:4px 8px;border-radius:99px;white-space:nowrap}
+main{padding-bottom:calc(150px + env(safe-area-inset-bottom,0px))}
+main .wrap{padding-block:14px;display:flex;flex-direction:column;gap:14px}
+main .wrap>*{min-width:0;max-width:100%}
+.card{min-width:0}
+.monthchips{max-width:100%}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:25;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+nav.tabs .wrap{display:grid;grid-template-columns:repeat(5,1fr);padding-block:6px}
+nav.tabs button{background:none;border:0;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 2px;font-size:11.5px;font-weight:600;color:var(--muted);border-radius:10px}
+nav.tabs button svg{width:22px;height:22px}
+nav.tabs button[aria-current="page"]{color:var(--navy);background:var(--sunk)}
+:root[data-theme="dark"] nav.tabs button[aria-current="page"]{color:var(--ink)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) nav.tabs button[aria-current="page"]{color:var(--ink)}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px}
+.row{display:flex;align-items:center;gap:10px}
+.between{justify-content:space-between}
+.muted{color:var(--muted)}
+.small{font-size:12.5px}
+.label{font-size:11.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--muted)}
+h2{font-family:var(--f-display);font-weight:800;font-size:20px;margin:0;text-wrap:balance}
+h3{font-family:var(--f-display);font-weight:600;font-size:16px;margin:0}
+.datebar{display:grid;grid-template-columns:44px 1fr 44px;gap:8px;align-items:center}
+.iconbtn{width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center}
+.iconbtn svg{width:20px;height:20px}
+.datebox{position:relative;text-align:center;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:6px 8px}
+.datebox .d{font-family:var(--f-display);font-weight:800;font-size:19px}
+.datebox input{position:absolute;inset:0;opacity:0;width:100%;height:100%}
+.seg{display:grid;grid-template-columns:1fr 1fr;background:var(--sunk);border-radius:12px;padding:4px;gap:4px}
+.seg button{border:0;background:none;border-radius:9px;padding:10px;font-weight:700;display:flex;justify-content:center;gap:8px;align-items:center}
+.seg button[aria-pressed="true"]{background:var(--surface);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--line);display:inline-block}
+.dot.on{background:var(--present)}
+.banner{border-radius:12px;padding:12px 14px;font-weight:600;font-size:14px}
+.banner.off{background:var(--sunk);color:var(--muted)}
+.banner.warn{background:var(--half-bg);color:var(--half)}
+.tally{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.tally div{border-radius:12px;padding:8px 10px;text-align:center}
+.tally b{display:block;font-family:var(--f-display);font-size:22px;font-variant-numeric:tabular-nums}
+.tally span{font-size:12px;font-weight:600}
+.t-p{background:var(--present-bg);color:var(--present)}
+.t-a{background:var(--absent-bg);color:var(--absent)}
+.t-l{background:var(--leave-bg);color:var(--leave)}
+.search{width:100%;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:11px 12px}
+.quick{display:flex;gap:8px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:8px 12px;font-size:13px;font-weight:600}
+.chip[aria-pressed="true"]{background:var(--navy);color:var(--navy-ink);border-color:var(--navy)}
+.list{display:flex;flex-direction:column;gap:8px}
+.stu{display:grid;grid-template-columns:40px 1fr auto;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;text-align:left;width:100%}
+.roll{width:40px;height:40px;border-radius:50%;background:var(--sunk);display:grid;place-items:center;font-weight:700;font-variant-numeric:tabular-nums;font-size:14px}
+.stu .nm{font-weight:600;min-width:0;overflow-wrap:anywhere}
+.stu .meta{font-size:12px;color:var(--muted)}
+.mark{min-width:86px;text-align:center;border-radius:10px;padding:8px 6px;font-weight:800;font-size:13px;letter-spacing:.3px}
+.m-P{background:var(--present-bg);color:var(--present)}
+.m-A{background:var(--absent);color:#fff}
+.m-L{background:var(--leave);color:#fff}
+.stu.is-A{border-color:var(--absent)}
+.stu.is-L{border-color:var(--leave)}
+.stu:disabled{opacity:.55;cursor:default}
+.savebar{position:fixed;left:0;right:0;bottom:calc(64px + env(safe-area-inset-bottom,0px));z-index:24}
+.savebar .wrap{padding-block:8px}
+.savebtn{width:100%;border:0;border-radius:14px;padding:14px;background:var(--present);color:#fff;font-weight:800;font-size:16px;box-shadow:0 6px 18px rgba(0,0,0,.18)}
+.savebtn.dirty{background:var(--absent)}
+.savebtn:disabled{opacity:.6}
+.kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px}
+.kpi b{display:block;font-family:var(--f-display);font-weight:800;font-size:26px;font-variant-numeric:tabular-nums;margin-top:2px}
+.kpi .small{margin-top:2px}
+.k-bad b{color:var(--absent)} .k-good b{color:var(--present)} .k-gold b{color:var(--half)}
+.monthchips{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+.monthchips .chip{flex:none}
+.bars{display:flex;align-items:flex-end;gap:3px;height:110px;padding-top:8px}
+.bars i{flex:1;background:var(--navy);border-radius:3px 3px 0 0;min-height:2px;position:relative}
+.bars i.off{background:var(--sunk)}
+.bars i.low{background:var(--absent)}
+.barlbl{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:4px;font-variant-numeric:tabular-nums}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th,td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:right;font-size:13.5px}
+th:first-child,td:first-child{text-align:left}
+th{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+.tablewrap{overflow-x:auto}
+.pct-low{color:var(--absent);font-weight:700}
+.btn{border:0;border-radius:12px;padding:12px 14px;font-weight:700;background:var(--navy);color:var(--navy-ink)}
+.btn.ghost{background:var(--surface);color:var(--ink);border:1px solid var(--line)}
+.btn.green{background:var(--present);color:#fff}
+.btn.sm{padding:8px 12px;font-size:13px;border-radius:10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+.field{display:flex;flex-direction:column;gap:5px}
+.field input,.field select{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:10px 11px}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.field{min-width:0}
+.field input,.field select{width:100%;min-width:0}
+.sheet{position:fixed;inset:0;z-index:40;background:rgba(10,15,30,.5);display:flex;align-items:flex-end}
+.sheet .panel{background:var(--bg);width:100%;max-height:88%;overflow:auto;border-radius:20px 20px 0 0;padding-bottom:calc(16px + env(safe-area-inset-bottom,0px))}
+.sheet .panel .wrap{padding-block:16px;display:flex;flex-direction:column;gap:12px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(140px + env(safe-area-inset-bottom,0px));z-index:50;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:99px;font-weight:600;font-size:14px;max-width:calc(100% - 32px)}
+.empty{text-align:center;padding:28px 16px;color:var(--muted)}
+.paid{background:var(--present-bg);color:var(--present);border-radius:99px;padding:6px 10px;font-weight:700;font-size:12.5px;border:0}
+.due{background:var(--absent-bg);color:var(--absent);border-radius:99px;padding:6px 10px;font-weight:700;font-size:12.5px;border:0}
+.hol{display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
+textarea.out{width:100%;min-height:120px;border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:10px;font-size:13px}
+@media (prefers-reduced-motion: no-preference){.stu,.mark,.chip,.seg button{transition:background .15s,border-color .15s,color .15s}}
+@media (min-width:560px){.kpis{grid-template-columns:repeat(3,1fr)}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="crest" aria-hidden="true">SJS</div>
+    <div class="grow">
+      <h1 id="hdrSchool">St. James H.S. School</h1>
+      <button class="classbtn" id="hdrSub" aria-label="Switch class">Attendance Register</button>
+    </div>
+    <span class="pill-ro" id="roPill" hidden>View only</span>
+  </div>
+</header>
+
+<main><div class="wrap" id="view"><div class="empty">Loading the register…</div></div></main>
+
+<div class="savebar" id="savebar" hidden><div class="wrap"><button class="savebtn" id="saveBtn">Save</button></div></div>
+
+<nav class="tabs" aria-label="Sections"><div class="wrap">
+  <button data-tab="mark" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Mark</button>
+  <button data-tab="dash"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3v18h18"/><path d="M7 15v3M12 10v8M17 6v12"/></svg>Dashboard</button>
+  <button data-tab="students"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3-6 7-6s7 2 7 6"/><path d="M16 4a4 4 0 0 1 0 8M22 21c0-3-2-5-4-5.5"/></svg>Students</button>
+  <button data-tab="fines"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="6" width="20" height="13" rx="2"/><path d="M2 10h20M6 15h4"/></svg>Fines</button>
+  <button data-tab="more"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>More</button>
+</div></nav>
+
+<div id="sheetHost"></div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(() => {
+"use strict";
+// ---------- state ----------
+const S = {
+  db: null, dl: null, canWrite: true, ready: false,
+  cfg: null, students: [], att: {}, pay: {},
+  tab: "mark", date: todayISO(), session: new Date().getHours() < 12 ? "AM" : "PM",
+  draft: null, draftKey: "", dirty: false, search: "",
+  month: todayISO().slice(0, 7), lowScope: "month", fineMonth: todayISO().slice(0, 7), saving: false,
+  cid: null, classes: [], unsub: [], got: {}
+};
+function P(coll){return "c/"+S.cid+"/"+coll}
+function lsGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
+function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+function classLabel(k){return k?("Class "+(k.cls||"–")+(k.section?" - "+k.section:"")):""}
+const DEF = {
+  school: "St. James H.S. School", address: "", cls: "", section: "", teacher: "", principal: "", year: "",
+  start: "2026-04-01", end: "2027-03-31", countFrom: "2026-04-01", minPct: 0.75, sunOff: true,
+  satOff: "None", fineA: 10, fineHD: 20, fineL: 0, holidays: []
+};
+const SAT_OPTS = ["None", "All Saturdays", "1st Saturday", "2nd Saturday", "2nd & 4th Saturday", "1st & 3rd Saturday"];
+const MN = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const DN = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+// ---------- helpers ----------
+function pad(n){return String(n).padStart(2,"0")}
+function todayISO(){const d=new Date();return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())}
+function toD(iso){const [y,m,d]=iso.split("-").map(Number);return new Date(y,m-1,d)}
+function iso(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())}
+function addDays(s,n){const d=toD(s);d.setDate(d.getDate()+n);return iso(d)}
+function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function fmtDate(s){const d=toD(s);return DN[d.getDay()]+", "+d.getDate()+" "+MN[d.getMonth()]+" "+d.getFullYear()}
+function monthLabel(ym){const [y,m]=ym.split("-").map(Number);return MN[m-1]+" "+y}
+function pct(x){return x==null?"–":(x*100).toFixed(1)+"%"}
+function C(){const k=S.classes.find(x=>x.id===S.cid)||{};return Object.assign({},DEF,S.cfg||{},{cls:k.cls||"",section:k.section||"",teacher:k.teacher||""})}
+function months(){const c=C();const out=[];let d=toD(c.start);d.setDate(1);for(let i=0;i<12;i++){out.push(d.getFullYear()+"-"+pad(d.getMonth()+1));d.setMonth(d.getMonth()+1)}return out}
+function daysIn(ym){const [y,m]=ym.split("-").map(Number);return new Date(y,m,0).getDate()}
+function holidayName(s){const c=C();for(const h of c.holidays||[]){if(!h.from)continue;const to=h.to||h.from;if(s>=h.from&&s<=to)return h.name||"Holiday"}return null}
+function status(s){
+  const c=C();
+  if(s<c.start||s>c.end) return "OUT";
+  if(holidayName(s)) return "HOL";
+  const d=toD(s),wd=d.getDay(),n=Math.floor((d.getDate()-1)/7);
+  if(wd===0&&c.sunOff) return "OFF";
+  if(wd===6){const o=c.satOff;
+    if(o==="All Saturdays"||(o==="1st Saturday"&&n===0)||(o==="2nd Saturday"&&n===1)||(o==="2nd & 4th Saturday"&&(n===1||n===3))||(o==="1st & 3rd Saturday"&&(n===0||n===2))) return "OFF";}
+  if(s<c.countFrom) return "PRE";
+  if(s>todayISO()) return "FUT";
+  return "W";
+}
+function workDays(ym){const out=[];for(let d=1;d<=daysIn(ym);d++){const s=ym+"-"+pad(d);if(status(s)==="W")out.push(s)}return out}
+function codeOf(s,ses,roll){const a=S.att[s];return (a&&a[ses]&&a[ses][roll])||"P"}
+function statsFor(roll,ym){
+  const wd=workDays(ym);let full=0,half=0,lses=0;
+  for(const s of wd){const am=codeOf(s,"AM",roll),pm=codeOf(s,"PM",roll);
+    const a=(am==="A")+(pm==="A");if(a===2)full++;else if(a===1)half++;
+    lses+=(am==="L")+(pm==="L");}
+  const c=C(),ldays=lses/2,W=wd.length;
+  const present=W-full-0.5*half-ldays;
+  return {W,full,half,ldays,present,pct:W?present/W:null,fine:full*c.fineA+half*c.fineHD+ldays*c.fineL};
+}
+function sessionStats(roll){let t={W:0,full:0,half:0,ldays:0,present:0,fine:0};for(const ym of months()){const x=statsFor(roll,ym);for(const k in t)t[k]+=x[k]}t.pct=t.W?t.present/t.W:null;return t}
+function classMonth(ym){
+  const rows=S.students.map(st=>({st,x:statsFor(st.roll,ym)}));
+  const W=workDays(ym).length,N=rows.length;
+  const sumP=rows.reduce((a,r)=>a+r.x.present,0);
+  return {rows,W,N,avg:W&&N?sumP/(W*N):null,
+    full:rows.reduce((a,r)=>a+r.x.full,0),half:rows.reduce((a,r)=>a+r.x.half,0),ldays:rows.reduce((a,r)=>a+r.x.ldays,0),
+    fine:rows.reduce((a,r)=>a+r.x.fine,0),below:rows.filter(r=>r.x.pct!=null&&r.x.pct<C().minPct),perfect:rows.filter(r=>r.x.pct===1).length};
+}
+function daysNeeded(present,W,m){if(W===0||present/W>=m||m>=1)return 0;return Math.ceil((m*W-present)/(1-m))}
+function paidOn(ym,roll){const p=S.pay[ym];return p?p[roll]:undefined}
+function toast(msg){const t=document.getElementById("toast");t.textContent=msg;t.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>t.hidden=true,2400)}
+async function copyText(txt){try{await navigator.clipboard.writeText(txt);toast("Copied");return true}catch(e){showText(txt);return false}}
+function showText(txt){openSheet(`<h3>Copy this text</h3><p class="small muted">Select all and copy.</p><textarea class="out" id="outTxt" readonly>${esc(txt)}</textarea><button class="btn ghost" data-close>Close</button>`);const ta=document.getElementById("outTxt");ta.focus();ta.select()}
+
+// ---------- draft (marking) ----------
+function loadDraft(){
+  const key=S.date+"|"+S.session;
+  if(S.draftKey===key&&S.dirty)return;
+  const a=S.att[S.date];S.draft=Object.assign({},(a&&a[S.session])||{});S.draftKey=key;S.dirty=false;
+}
+function draftCode(roll){return S.draft[roll]||"P"}
+function cycle(roll){const order={P:"A",A:"L",L:"P"};const n=order[draftCode(roll)];if(n==="P")delete S.draft[roll];else S.draft[roll]=n;S.dirty=true}
+async function saveDraft(){
+  if(!S.db){toast("Saving isn't available in this view");return}
+  S.saving=true;render();
+  const cur=S.att[S.date]||{};
+  const body={AM:cur.AM||{},PM:cur.PM||{},takenAM:!!cur.takenAM,takenPM:!!cur.takenPM};
+  body[S.session]=Object.assign({},S.draft);body["taken"+S.session]=true;body.savedAt=new Date().toISOString();
+  try{await S.db.doc(P("att")+"/"+S.date).set(body);S.att[S.date]=body;S.dirty=false;toast(S.session+" attendance saved for "+fmtDate(S.date))}
+  catch(e){toast(e&&e.code==="invalid_argument"?"You have view-only access":"Couldn't save. Check your connection and try again.")}
+  S.saving=false;render();
+}
+
+// ---------- views ----------
+function render(){
+  document.querySelectorAll("nav.tabs button").forEach(b=>b.setAttribute("aria-current",b.dataset.tab===S.tab?"page":"false"));
+  const c=C();
+  document.getElementById("hdrSchool").textContent=c.school||"St. James H.S. School";
+  const k=S.classes.find(x=>x.id===S.cid);
+  document.getElementById("hdrSub").textContent=k?[classLabel(k),k.teacher].filter(Boolean).join("  •  ")+"  ▾":(S.ready?"Add a class  ▾":"Attendance Register");
+  document.getElementById("roPill").hidden=S.canWrite;
+  const v=document.getElementById("view");
+  if(!S.ready){v.innerHTML=`<div class="empty">Loading the register…</div>`;hideSave();return}
+  if(S.mode==="online"&&!S.user){viewLogin(v);return}
+  if(!k&&S.tab!=="more"){v.innerHTML=`<div class="card empty"><h3>No class yet</h3><p>Import your Excel attendance register, or add a class and paste the student list.</p><div class="btns" style="justify-content:center"><button class="btn green" id="firstImp">Import from Excel</button><button class="btn ghost" id="firstCls">Add class / section</button></div></div>`;hideSave();v.querySelector("#firstCls").onclick=()=>editClass(null);v.querySelector("#firstImp").onclick=importRegister;return}
+  if(!S.students.length){v.innerHTML=`<div class="card empty"><h3>No students yet</h3><p>Open the Students tab and tap “Paste list” or “Add student”.</p></div>`;hideSave();if(S.tab!=="students"&&S.tab!=="more")return}
+  ({mark:viewMark,dash:viewDash,students:viewStudents,fines:viewFines,more:viewMore})[S.tab](v);
+}
+function hideSave(){document.getElementById("savebar").hidden=true}
+
+function viewMark(v){
+  loadDraft();
+  const st=status(S.date),a=S.att[S.date]||{};
+  const can=st==="W"&&S.canWrite;
+  const counts={P:0,A:0,L:0};S.students.forEach(s=>counts[draftCode(s.roll)]++);
+  let banner="";
+  if(st==="HOL")banner=`<div class="banner off">Holiday: ${esc(holidayName(S.date))}. Not counted.</div>`;
+  else if(st==="OFF")banner=`<div class="banner off">Weekly off. Not counted.</div>`;
+  else if(st==="FUT")banner=`<div class="banner off">This date is in the future.</div>`;
+  else if(st==="OUT"||st==="PRE")banner=`<div class="banner off">Outside the counted session dates.</div>`;
+  else if(!a["taken"+S.session])banner=`<div class="banner warn">${S.session} attendance not saved yet. Tap Absent or Leave students, then Save.</div>`;
+  const q=S.search.trim().toLowerCase();
+  const list=S.students.filter(s=>!q||s.name.toLowerCase().includes(q)||String(s.roll)===q);
+  v.innerHTML=`
+  <div class="datebar">
+    <button class="iconbtn" id="prevD" aria-label="Previous day"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+    <label class="datebox"><div class="d">${esc(fmtDate(S.date))}</div><div class="small muted">${S.date===todayISO()?"Today":"Tap to pick a date"}</div><input type="date" id="pickD" value="${S.date}" min="${C().start}" max="${C().end}" aria-label="Pick date"></label>
+    <button class="iconbtn" id="nextD" aria-label="Next day"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg></button>
+  </div>
+  <div class="seg" role="group" aria-label="Session">
+    <button data-ses="AM" aria-pressed="${S.session==="AM"}"><span class="dot ${a.takenAM?"on":""}"></span>Morning (AM)</button>
+    <button data-ses="PM" aria-pressed="${S.session==="PM"}"><span class="dot ${a.takenPM?"on":""}"></span>Afternoon (PM)</button>
+  </div>
+  ${banner}
+  <div class="tally"><div class="t-p"><b>${counts.P}</b><span>Present</span></div><div class="t-a"><b>${counts.A}</b><span>Absent</span></div><div class="t-l"><b>${counts.L}</b><span>Leave</span></div></div>
+  ${can?`<div class="quick"><button class="chip" id="allP">Mark all present</button>${S.session==="PM"?`<button class="chip" id="copyAM">Same as AM</button>`:""}<button class="chip" id="shareAbs">Copy absentee list</button></div>`:""}
+  <input class="search" id="search" type="search" placeholder="Search name or roll number" value="${esc(S.search)}" aria-label="Search students">
+  <p class="small muted" style="margin:0">Tap a student to change: Present → Absent → Leave.</p>
+  <div class="list">${list.map(s=>{const c=draftCode(s.roll);return `<button class="stu is-${c}" data-roll="${s.roll}" ${can?"":"disabled"}><span class="roll">${s.roll}</span><span><div class="nm">${esc(s.name)}</div><div class="meta">${esc(s.adm||"")}</div></span><span class="mark m-${c}">${c==="P"?"PRESENT":c==="A"?"ABSENT":"LEAVE"}</span></button>`}).join("")}</div>`;
+  const sb=document.getElementById("savebar"),btn=document.getElementById("saveBtn");
+  sb.hidden=!can;
+  btn.textContent=S.saving?"Saving…":(S.dirty?`Save ${S.session} attendance  (unsaved)`:(a["taken"+S.session]?`${S.session} saved ✓  — tap to save again`:`Save ${S.session} attendance`));
+  btn.classList.toggle("dirty",S.dirty);btn.disabled=S.saving;
+  v.querySelector("#prevD").onclick=()=>changeDate(addDays(S.date,-1));
+  v.querySelector("#nextD").onclick=()=>changeDate(addDays(S.date,1));
+  v.querySelector("#pickD").onchange=e=>e.target.value&&changeDate(e.target.value);
+  v.querySelectorAll("[data-ses]").forEach(b=>b.onclick=()=>{if(S.dirty&&!confirmLeave())return;S.session=b.dataset.ses;S.dirty=false;S.draftKey="";render()});
+  v.querySelectorAll(".stu").forEach(b=>b.onclick=()=>{cycle(+b.dataset.roll);render()});
+  const sEl=v.querySelector("#search");sEl.oninput=e=>{S.search=e.target.value;const pos=e.target.selectionStart;render();const n=document.getElementById("search");n.focus();n.setSelectionRange(pos,pos)};
+  const allP=v.querySelector("#allP");if(allP)allP.onclick=()=>{S.draft={};S.dirty=true;render()};
+  const cAM=v.querySelector("#copyAM");if(cAM)cAM.onclick=()=>{S.draft=Object.assign({},(S.att[S.date]&&S.att[S.date].AM)||{});S.dirty=true;render();toast("Copied AM marks — tap Save")};
+  const sh=v.querySelector("#shareAbs");if(sh)sh.onclick=()=>{
+    const ab=S.students.filter(s=>draftCode(s.roll)==="A"),lv=S.students.filter(s=>draftCode(s.roll)==="L");const c=C();
+    const t=`${c.school} – Class ${c.cls}\n${fmtDate(S.date)} (${S.session})\nPresent: ${counts.P} / ${S.students.length}\nAbsent (${ab.length}): ${ab.map(s=>s.roll+". "+s.name).join(", ")||"None"}\nLeave (${lv.length}): ${lv.map(s=>s.roll+". "+s.name).join(", ")||"None"}\n— ${c.teacher}`;
+    copyText(t)};
+}
+let leaveArmed=false;
+function confirmLeave(){if(leaveArmed){leaveArmed=false;return true}leaveArmed=true;toast("You have unsaved marks. Tap again to discard them.");setTimeout(()=>leaveArmed=false,3000);return false}
+function changeDate(s){if(S.dirty&&!confirmLeave())return;S.date=s;S.dirty=false;S.draftKey="";render()}
+
+function monthChips(cur,id){return `<div class="monthchips" id="${id}">${months().map(m=>`<button class="chip" data-m="${m}" aria-pressed="${m===cur}">${monthLabel(m)}</button>`).join("")}</div>`}
+
+function viewDash(v){
+  hideSave();
+  const c=C(),cm=classMonth(S.month),t=todayISO();
+  const ta=S.att[t]||{},tst=status(t);
+  const nameOf=r=>(S.students.find(s=>s.roll==r)||{}).name||("Roll "+r);
+  const absList=ses=>Object.entries((ta[ses])||{}).filter(([r,c])=>c==="A").map(([r])=>r);
+  const todayCard=tst==="W"?`<div class="card"><div class="row between"><h3>Today</h3><span class="small muted">${esc(fmtDate(t))}</span></div>
+    <div class="grid2" style="margin-top:10px">${["AM","PM"].map(ses=>{const ab=absList(ses);return `<div><div class="label">${ses} ${ta["taken"+ses]?"✓ saved":"· not taken"}</div><div style="font-weight:700;margin-top:4px">${ta["taken"+ses]?(S.students.length-Object.keys(ta[ses]||{}).length)+" present, "+ab.length+" absent":"–"}</div><div class="small muted">${ab.map(r=>esc(nameOf(r))).join(", ")}</div></div>`}).join("")}</div></div>`
+    :`<div class="banner off">Today is ${tst==="HOL"?"a holiday ("+esc(holidayName(t))+")":tst==="OFF"?"a weekly off":"not a school day"}.</div>`;
+  // daily bars
+  const days=daysIn(S.month);let bars="";
+  for(let d=1;d<=days;d++){const s=S.month+"-"+pad(d);const st=status(s);
+    if(st!=="W"){bars+=`<i class="off" style="height:4%" title="${d}"></i>`;continue}
+    let tot=0;for(const x of S.students){const am=codeOf(s,"AM",x.roll),pm=codeOf(s,"PM",x.roll);tot+=(am==="P")*0.5+(pm==="P")*0.5}
+    const p=S.students.length?tot/S.students.length:0;bars+=`<i class="${p<c.minPct?"low":""}" style="height:${Math.max(4,p*100)}%" title="${d}: ${pct(p)}"></i>`}
+  const scopeRows=S.lowScope==="month"?cm.below.map(r=>({st:r.st,x:r.x})):S.students.map(st=>({st,x:sessionStats(st.roll)})).filter(r=>r.x.pct!=null&&r.x.pct<c.minPct);
+  scopeRows.sort((a,b)=>a.x.pct-b.x.pct);
+  const collected=cm.rows.reduce((a,r)=>a+(paidOn(S.month,r.st.roll)?r.x.fine:0),0);
+  v.innerHTML=`${todayCard}
+  ${monthChips(S.month,"mchips")}
+  <div class="kpis">
+    <div class="kpi"><div class="label">Students</div><b>${cm.N}</b><div class="small muted">Class ${esc(c.cls)}</div></div>
+    <div class="kpi"><div class="label">Working days</div><b>${cm.W}</b><div class="small muted">${monthLabel(S.month)}</div></div>
+    <div class="kpi k-good"><div class="label">Class average</div><b>${pct(cm.avg)}</b><div class="small muted">Target ${Math.round(c.minPct*100)}%</div></div>
+    <div class="kpi k-bad"><div class="label">Below ${Math.round(c.minPct*100)}%</div><b>${cm.below.length}</b><div class="small muted">Perfect: ${cm.perfect}</div></div>
+    <div class="kpi"><div class="label">Absences</div><b>${cm.full+cm.half}</b><div class="small muted">Full ${cm.full} • Half ${cm.half} • Leave ${cm.ldays}</div></div>
+    <div class="kpi k-gold"><div class="label">Fine due</div><b>Rs ${cm.fine}</b><div class="small muted">Collected Rs ${collected}</div></div>
+  </div>
+  <div class="card"><div class="row between"><h3>Daily attendance</h3><span class="small muted">${monthLabel(S.month)}</span></div>
+    <div class="bars" role="img" aria-label="Daily attendance percentage">${bars}</div><div class="barlbl"><span>1</span><span>${Math.ceil(days/2)}</span><span>${days}</span></div></div>
+  <div class="card"><div class="row between" style="flex-wrap:wrap;gap:8px"><h3>Below ${Math.round(c.minPct*100)}%</h3>
+    <div class="seg" style="width:200px"><button data-scope="month" aria-pressed="${S.lowScope==="month"}">Month</button><button data-scope="session" aria-pressed="${S.lowScope==="session"}">Session</button></div></div>
+    ${scopeRows.length?`<div class="tablewrap"><table><thead><tr><th>Student</th><th>Days</th><th>%</th><th>Need</th></tr></thead><tbody>${scopeRows.map(r=>`<tr><td>${r.st.roll}. ${esc(r.st.name)}</td><td>${r.x.present.toFixed(1)}/${r.x.W}</td><td class="pct-low">${pct(r.x.pct)}</td><td>${daysNeeded(r.x.present,r.x.W,c.minPct)}</td></tr>`).join("")}</tbody></table></div>
+    <p class="small muted">“Need” = days of full attendance needed to reach ${Math.round(c.minPct*100)}%.</p>`:`<p class="muted">No student is below ${Math.round(c.minPct*100)}%.</p>`}
+    <div class="btns"><button class="btn sm" id="repBtn">Copy report for Principal</button></div></div>`;
+  v.querySelectorAll("#mchips [data-m]").forEach(b=>b.onclick=()=>{S.month=b.dataset.m;render()});
+  v.querySelectorAll("[data-scope]").forEach(b=>b.onclick=()=>{S.lowScope=b.dataset.scope;render()});
+  v.querySelector("#repBtn").onclick=()=>{
+    const per=S.lowScope==="month"?monthLabel(S.month):"Whole session";
+    const t=`To: ${c.principal||"The Principal"}, ${c.school}\nAttendance report – Class ${c.cls}${c.section?" - "+c.section:""} – ${monthLabel(S.month)}\n\nStudents: ${cm.N}\nWorking days: ${cm.W}\nClass average: ${pct(cm.avg)}\nFull-day absences: ${cm.full} | Half-day: ${cm.half} | Leave days: ${cm.ldays}\nFine due: Rs ${cm.fine} | Collected: Rs ${collected}\n\nBelow ${Math.round(c.minPct*100)}% (${per}): ${scopeRows.length}\n${scopeRows.map((r,i)=>`${i+1}. ${r.st.name} (Roll ${r.st.roll}) – ${pct(r.x.pct)}, needs ${daysNeeded(r.x.present,r.x.W,c.minPct)} days`).join("\n")||"None"}\n\n— ${c.teacher}, Class Teacher`;
+    copyText(t)};
+  const mc=v.querySelector('#mchips [aria-pressed="true"]');if(mc)mc.scrollIntoView({inline:"center",block:"nearest"});
+}
+
+function viewStudents(v){
+  hideSave();
+  const c=C();
+  const q=S.search.trim().toLowerCase();
+  const rows=S.students.filter(s=>!q||s.name.toLowerCase().includes(q)||String(s.roll)===q).map(st=>({st,x:sessionStats(st.roll)}));
+  v.innerHTML=`<div class="row between" style="flex-wrap:wrap;gap:8px"><h2>Students (${S.students.length})</h2>${S.canWrite?`<div class="btns"><button class="btn ghost sm" id="bulkStu">Paste list</button><button class="btn sm" id="addStu">Add student</button></div>`:""}</div>
+  <input class="search" id="search" type="search" placeholder="Search name or roll number" value="${esc(S.search)}" aria-label="Search students">
+  <div class="list">${rows.map(r=>`<button class="stu" data-open="${r.st.roll}"><span class="roll">${r.st.roll}</span><span><div class="nm">${esc(r.st.name)}</div><div class="meta">${esc([r.st.adm,r.st.gender==="M"?"Boy":r.st.gender==="F"?"Girl":""].filter(Boolean).join(" • "))}</div></span><span class="mark ${r.x.pct!=null&&r.x.pct<c.minPct?"m-A":"m-P"}">${pct(r.x.pct)}</span></button>`).join("")}</div>`;
+  v.querySelectorAll("[data-open]").forEach(b=>b.onclick=()=>openStudent(+b.dataset.open));
+  const sEl=v.querySelector("#search");sEl.oninput=e=>{S.search=e.target.value;const pos=e.target.selectionStart;render();const n=document.getElementById("search");n.focus();n.setSelectionRange(pos,pos)};
+  const add=v.querySelector("#addStu");if(add)add.onclick=()=>editStudent(null);
+  const bulk=v.querySelector("#bulkStu");if(bulk)bulk.onclick=bulkStudents;
+}
+function bulkStudents(){
+  openSheet(`<h2>Paste student list</h2><p class="small muted">One student per line. Use either just the name, or <b>Roll, Adm. no, Name</b> (copied from Excel works too). Students without a roll number are numbered after the last roll.</p>
+  <textarea class="out" id="bulkTxt" placeholder="1, AD-01, Abraham Debbarma&#10;2, AD-02, Adrick Molsom&#10;or just:&#10;Abraham Debbarma"></textarea>
+  <div class="btns"><button class="btn green" id="bulkGo">Add students</button><button class="btn ghost" data-close>Cancel</button></div>`);
+  document.getElementById("bulkGo").onclick=async e=>{
+    const lines=document.getElementById("bulkTxt").value.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+    if(!lines.length){toast("Paste at least one name");return}
+    let next=S.students.reduce((a,s)=>Math.max(a,s.roll),0)+1;const taken=new Set(S.students.map(s=>s.roll));const out=[];
+    for(const l of lines){const parts=l.split(/\t|,/).map(x=>x.trim()).filter(x=>x!=="");
+      let roll=null,adm="",name="";
+      if(parts.length>=3&&/^\d+$/.test(parts[0])){roll=+parts[0];adm=parts[1];name=parts.slice(2).join(" ")}
+      else if(parts.length===2&&/^\d+$/.test(parts[0])){roll=+parts[0];name=parts[1]}
+      else name=parts.join(" ");
+      if(!name)continue;if(!roll||taken.has(roll)){while(taken.has(next))next++;roll=next}
+      taken.add(roll);out.push({roll,adm,name,gender:"",parent:"",phone:""})}
+    e.target.disabled=true;let n=0;
+    for(const s of out){e.target.textContent=`Adding ${++n} of ${out.length}…`;
+      try{await S.db.doc(P("students")+"/r"+String(s.roll).padStart(3,"0")).set(s)}catch(err){toast("Stopped: couldn't save "+s.name);e.target.disabled=false;return}}
+    closeSheet();toast(out.length+" students added");
+  };
+}
+function openStudent(roll){
+  const st=S.students.find(s=>s.roll===roll);if(!st)return;const c=C();const ses=sessionStats(roll);
+  const rows=months().map(m=>({m,x:statsFor(roll,m)})).filter(r=>r.x.W>0);
+  openSheet(`<div class="row between"><div><h2>${esc(st.name)}</h2><div class="small muted">Roll ${st.roll} • ${esc(st.adm||"")} • Class ${esc(c.cls)}</div></div><button class="iconbtn" data-close aria-label="Close">✕</button></div>
+  <div class="kpis"><div class="kpi ${ses.pct!=null&&ses.pct<c.minPct?"k-bad":"k-good"}"><div class="label">Session</div><b>${pct(ses.pct)}</b><div class="small muted">${ses.present.toFixed(1)} of ${ses.W} days</div></div>
+  <div class="kpi k-gold"><div class="label">Fines</div><b>Rs ${ses.fine}</b><div class="small muted">Full ${ses.full} • Half ${ses.half}</div></div></div>
+  ${ses.pct!=null&&ses.pct<c.minPct?`<div class="banner warn">Needs ${daysNeeded(ses.present,ses.W,c.minPct)} more days of full attendance to reach ${Math.round(c.minPct*100)}%.</div>`:""}
+  <div class="card tablewrap"><table><thead><tr><th>Month</th><th>Days</th><th>Full A</th><th>Half</th><th>Leave</th><th>%</th><th>Fine</th></tr></thead><tbody>
+  ${rows.map(r=>`<tr><td>${monthLabel(r.m)}</td><td>${r.x.present.toFixed(1)}/${r.x.W}</td><td>${r.x.full||"–"}</td><td>${r.x.half||"–"}</td><td>${r.x.ldays||"–"}</td><td class="${r.x.pct<c.minPct?"pct-low":""}">${pct(r.x.pct)}</td><td>${r.x.fine||"–"}${r.x.fine?(paidOn(r.m,roll)?" ✓":""):""}</td></tr>`).join("")}</tbody></table></div>
+  ${st.parent||st.phone?`<div class="card"><div class="label">Parent / Guardian</div><div style="font-weight:600;margin-top:4px">${esc(st.parent||"")}</div><div class="row" style="margin-top:6px"><span style="user-select:all;font-variant-numeric:tabular-nums">${esc(st.phone||"")}</span>${st.phone?`<button class="btn ghost sm" id="cpPhone">Copy number</button>`:""}</div></div>`:""}
+  <div class="btns">${S.canWrite?`<button class="btn ghost" id="editS">Edit details</button>`:""}<button class="btn ghost" data-close>Close</button></div>`);
+  const cp=document.getElementById("cpPhone");if(cp)cp.onclick=()=>copyText(String(st.phone));
+  const ed=document.getElementById("editS");if(ed)ed.onclick=()=>editStudent(st);
+}
+function editStudent(st){
+  const nextRoll=S.students.reduce((a,s)=>Math.max(a,s.roll),0)+1;
+  const s=st||{roll:nextRoll,adm:"",name:"",gender:"",parent:"",phone:""};
+  openSheet(`<h2>${st?"Edit student":"Add student"}</h2>
+  <div class="grid2"><label class="field"><span class="label">Roll no.</span><input id="fRoll" type="number" min="1" value="${s.roll}" ${st?"disabled":""}></label>
+  <label class="field"><span class="label">Adm. no.</span><input id="fAdm" value="${esc(s.adm)}"></label></div>
+  <label class="field"><span class="label">Student name</span><input id="fName" value="${esc(s.name)}"></label>
+  <div class="grid2"><label class="field"><span class="label">Gender</span><select id="fGen"><option value="">–</option><option value="M" ${s.gender==="M"?"selected":""}>Boy (M)</option><option value="F" ${s.gender==="F"?"selected":""}>Girl (F)</option></select></label>
+  <label class="field"><span class="label">Contact no.</span><input id="fPh" inputmode="tel" value="${esc(s.phone)}"></label></div>
+  <label class="field"><span class="label">Parent / Guardian</span><input id="fPar" value="${esc(s.parent)}"></label>
+  <div class="btns"><button class="btn green" id="fSave">Save student</button><button class="btn ghost" data-close>Cancel</button></div>`);
+  document.getElementById("fSave").onclick=async()=>{
+    const roll=+document.getElementById("fRoll").value,name=document.getElementById("fName").value.trim();
+    if(!roll||!name){toast("Enter a roll number and name");return}
+    if(!st&&S.students.some(x=>x.roll===roll)){toast("Roll "+roll+" already exists");return}
+    const body={roll,adm:document.getElementById("fAdm").value.trim(),name,gender:document.getElementById("fGen").value,parent:document.getElementById("fPar").value.trim(),phone:document.getElementById("fPh").value.trim()};
+    try{await S.db.doc(P("students")+"/r"+String(roll).padStart(3,"0")).set(body);closeSheet();toast("Saved "+name)}catch(e){toast("Couldn't save the student")}
+  };
+}
+
+function viewFines(v){
+  hideSave();
+  const c=C(),ym=S.fineMonth,cm=classMonth(ym);
+  const rows=cm.rows.filter(r=>r.x.fine>0);
+  const coll=rows.reduce((a,r)=>a+(paidOn(ym,r.st.roll)?r.x.fine:0),0);
+  let sesDue=0,sesColl=0;for(const m of months()){for(const st of S.students){const f=statsFor(st.roll,m).fine;sesDue+=f;if(paidOn(m,st.roll))sesColl+=f}}
+  v.innerHTML=`<div class="row between"><h2>Fines</h2><span class="small muted">A Rs ${c.fineA} • Half Rs ${c.fineHD} • L Rs ${c.fineL}</span></div>
+  ${monthChips(ym,"fchips")}
+  <div class="kpis"><div class="kpi k-gold"><div class="label">Due · ${monthLabel(ym)}</div><b>Rs ${cm.fine}</b></div>
+  <div class="kpi k-good"><div class="label">Collected</div><b>Rs ${coll}</b></div>
+  <div class="kpi k-bad"><div class="label">Session balance</div><b>Rs ${sesDue-sesColl}</b><div class="small muted">of Rs ${sesDue} due</div></div></div>
+  ${rows.length?`<div class="list">${rows.map(r=>{const p=paidOn(ym,r.st.roll);return `<div class="stu" style="cursor:default"><span class="roll">${r.st.roll}</span><span><div class="nm">${esc(r.st.name)}</div><div class="meta">${[r.x.full?r.x.full+" full":"",r.x.half?r.x.half+" half":"",r.x.ldays?r.x.ldays+" leave":""].filter(Boolean).join(" • ")} → <b>Rs ${r.x.fine}</b>${p?" • paid "+esc(fmtDate(p).slice(5)):""}</div></span>
+    <span class="row" style="gap:6px">${p?`<button class="paid" data-unpay="${r.st.roll}" ${S.canWrite?"":"disabled"}>Paid ✓</button><button class="chip" data-rcpt="${r.st.roll}">Receipt</button>`:`<button class="due" data-pay="${r.st.roll}" ${S.canWrite?"":"disabled"}>Mark paid</button>`}</span></div>`}).join("")}</div>`
+  :`<div class="card empty">No fines for ${monthLabel(ym)}.</div>`}
+  <p class="small muted">Fines are worked out from the AM/PM marks: A in both sessions = full day, A in one = half day.</p>`;
+  v.querySelectorAll("#fchips [data-m]").forEach(b=>b.onclick=()=>{S.fineMonth=b.dataset.m;render()});
+  v.querySelectorAll("[data-pay]").forEach(b=>b.onclick=()=>setPaid(ym,b.dataset.pay,todayISO()));
+  v.querySelectorAll("[data-unpay]").forEach(b=>b.onclick=()=>{if(b.dataset.armed){setPaid(ym,b.dataset.unpay,null)}else{b.dataset.armed="1";b.textContent="Tap to undo";setTimeout(()=>{if(b.isConnected){delete b.dataset.armed;b.textContent="Paid ✓"}},3000)}});
+  v.querySelectorAll("[data-rcpt]").forEach(b=>b.onclick=()=>{const r=rows.find(x=>x.st.roll==b.dataset.rcpt);const p=paidOn(ym,r.st.roll);
+    const no="FR/"+ym.slice(5)+ym.slice(2,4)+"/"+String(r.st.roll).padStart(3,"0");
+    copyText(`${c.school}\nFINE RECEIPT  No. ${no}\nName: ${r.st.name}  (Roll ${r.st.roll}, Class ${c.cls})\nFine for: ${monthLabel(ym)}\nFull-day absent: ${r.x.full} × Rs ${c.fineA}\nHalf-day absent: ${r.x.half} × Rs ${c.fineHD}\nLeave: ${r.x.ldays} × Rs ${c.fineL}\nAmount received: Rs ${r.x.fine}\nDate: ${fmtDate(p)}\n— ${c.teacher}, Class Teacher`)});
+  const mc=v.querySelector('#fchips [aria-pressed="true"]');if(mc)mc.scrollIntoView({inline:"center",block:"nearest"});
+}
+async function setPaid(ym,roll,date){
+  const cur=Object.assign({},S.pay[ym]||{});if(date)cur[roll]=date;else delete cur[roll];
+  try{await S.db.doc(P("pay")+"/"+ym).set(cur);S.pay[ym]=cur;render();toast(date?"Marked as paid":"Payment removed")}catch(e){toast("Couldn't save the payment")}
+}
+
+function viewMore(v){
+  hideSave();
+  const c=C();
+  const k=S.classes.find(x=>x.id===S.cid);
+  v.innerHTML=`<h2>More</h2>
+  ${dataCard()}
+  <div class="card"><div class="row between"><h3>Classes &amp; sections (${S.classes.length})</h3>${S.canWrite?`<button class="btn sm" id="addCls">Add class</button>`:""}</div>
+    <div class="list classlist" style="margin-top:10px">${S.classes.map(x=>`<div class="stu" style="cursor:default" ${x.id===S.cid?'aria-current="true"':""}><span class="roll">${esc(x.cls)}</span><span><div class="nm">${esc(classLabel(x))}</div><div class="meta">${esc(x.teacher||"No class teacher set")}</div></span><span class="row" style="gap:6px">${x.id===S.cid?`<span class="small muted">Open</span>`:`<button class="chip" data-switch="${esc(x.id)}">Open</button>`}${S.canWrite?`<button class="chip" data-editcls="${esc(x.id)}">Edit</button>`:""}</span></div>`).join("")||`<p class="muted">No classes yet.</p>`}</div></div>
+  ${k?`<div class="card"><h3>Send to Excel</h3>`:`<div hidden>`}<p class="small muted">Copies one month of AM/PM marks. In your Excel register (two-times version), open that month's sheet, click cell <b>C9</b> and paste.</p>
+    ${monthChips(S.month,"xchips")}<div class="btns" style="margin-top:8px"><button class="btn" id="xCopy">Copy ${monthLabel(S.month)} for Excel</button><button class="btn ghost" id="xCsv">Download CSV</button></div></div>
+  <div class="card"><h3>Settings</h3>
+    <div class="grid2" style="margin-top:10px">
+      <label class="field"><span class="label">Full-day fine (Rs)</span><input id="sA" type="number" min="0" value="${c.fineA}"></label>
+      <label class="field"><span class="label">Half-day fine (Rs)</span><input id="sHD" type="number" min="0" value="${c.fineHD}"></label>
+      <label class="field"><span class="label">Leave fine (Rs)</span><input id="sL" type="number" min="0" value="${c.fineL}"></label>
+      <label class="field"><span class="label">Minimum %</span><input id="sMin" type="number" min="1" max="100" value="${Math.round(c.minPct*100)}"></label>
+      <label class="field"><span class="label">Saturdays off</span><select id="sSat">${SAT_OPTS.map(o=>`<option ${o===c.satOff?"selected":""}>${o}</option>`).join("")}</select></label>
+      <label class="field"><span class="label">Sundays off</span><select id="sSun"><option value="1" ${c.sunOff?"selected":""}>Yes</option><option value="0" ${c.sunOff?"":"selected"}>No</option></select></label>
+    </div>
+    <p class="small muted" style="margin:10px 0 0">These settings apply to every class. Class teacher is set per class above.</p>
+    <label class="field" style="margin-top:10px"><span class="label">Principal</span><input id="sP" value="${esc(c.principal)}"></label>
+    ${S.canWrite?`<div class="btns" style="margin-top:12px"><button class="btn green" id="sSave">Save settings</button></div>`:""}</div>
+  <div class="card"><h3>Holidays &amp; vacations</h3>
+    <div style="margin-top:8px">${(c.holidays||[]).slice().sort((a,b)=>a.from<b.from?-1:1).map((h,i)=>`<div class="hol"><span><b>${esc(h.name)}</b><br><span class="small muted">${esc(fmtDate(h.from))}${h.to&&h.to!==h.from?" – "+esc(fmtDate(h.to)):""}</span></span>${S.canWrite?`<button class="chip" data-delhol="${esc(h.from)}|${esc(h.name)}">Remove</button>`:""}</div>`).join("")||`<p class="muted">No holidays added.</p>`}</div>
+    ${S.canWrite?`<div class="grid2" style="margin-top:10px"><label class="field"><span class="label">From</span><input id="hF" type="date"></label><label class="field"><span class="label">To (optional)</span><input id="hT" type="date"></label></div>
+    <label class="field" style="margin-top:8px"><span class="label">Name</span><input id="hN" placeholder="e.g. Durga Puja vacation"></label>
+    <div class="btns" style="margin-top:10px"><button class="btn" id="hAdd">Add holiday</button></div>`:""}</div>
+  <p class="small muted">Session ${esc(c.start)} to ${esc(c.end)} • Counting from ${esc(c.countFrom)}</p>`;
+  v.querySelectorAll("#xchips [data-m]").forEach(b=>b.onclick=()=>{S.month=b.dataset.m;render()});
+  v.querySelector("#xCopy").onclick=()=>{
+    if(!k){toast("Add a class first");return}
+    const ym=S.month,lines=S.students.map(st=>{const cells=[];for(let d=1;d<=31;d++){const s=ym+"-"+pad(d);for(const ses of ["AM","PM"]){const a=S.att[s];const code=(a&&a[ses]&&a[ses][st.roll])||"";cells.push(code==="P"?"":code)}}return cells.join("\t")});
+    copyText(lines.join("\n"))};
+  const csv=v.querySelector("#xCsv");if(csv)csv.onclick=async()=>{
+    const out=["Date,Session,Roll,Student,Mark"];for(const s of Object.keys(S.att).sort()){for(const ses of ["AM","PM"]){const m=(S.att[s]||{})[ses]||{};for(const [r,code] of Object.entries(m)){const st=S.students.find(x=>x.roll==r);out.push([s,ses,r,'"'+(st?st.name:"").replace(/"/g,'""')+'"',code].join(","))}}}
+    saveFile("SJS_Attendance_"+(C().cls||"")+(C().section?"-"+C().section:"")+"_"+todayISO()+".csv",out.join("\n"),"text/csv");toast("CSV downloaded")};
+  const ss=v.querySelector("#sSave");if(ss)ss.onclick=()=>saveCfg({fineA:+v.querySelector("#sA").value||0,fineHD:+v.querySelector("#sHD").value||0,fineL:+v.querySelector("#sL").value||0,
+    minPct:Math.min(1,Math.max(0.01,(+v.querySelector("#sMin").value||75)/100)),satOff:v.querySelector("#sSat").value,sunOff:v.querySelector("#sSun").value==="1",
+    principal:v.querySelector("#sP").value.trim()},"Settings saved");
+  const ac=v.querySelector("#addCls");if(ac)ac.onclick=()=>editClass(null);
+  v.querySelectorAll("[data-switch]").forEach(b=>b.onclick=()=>switchClass(b.dataset.switch));
+  wireDataCard(v);
+  v.querySelectorAll("[data-editcls]").forEach(b=>b.onclick=()=>editClass(S.classes.find(x=>x.id===b.dataset.editcls)));
+  const ha=v.querySelector("#hAdd");if(ha)ha.onclick=()=>{const f=v.querySelector("#hF").value,t=v.querySelector("#hT").value,n=v.querySelector("#hN").value.trim();
+    if(!f||!n){toast("Enter a date and a name");return}const hs=(c.holidays||[]).slice();hs.push({name:n,from:f,to:t&&t>=f?t:""});saveCfg({holidays:hs},"Holiday added")};
+  v.querySelectorAll("[data-delhol]").forEach(b=>b.onclick=()=>{const [f,n]=b.dataset.delhol.split("|");saveCfg({holidays:(c.holidays||[]).filter(h=>!(h.from===f&&h.name===n))},"Holiday removed")});
+}
+async function saveCfg(patch,msg){
+  const body=Object.assign({},S.cfg||DEF,patch);
+  try{await S.db.doc("cfg/main").set(body);S.cfg=body;render();toast(msg)}catch(e){toast("Couldn't save settings")}
+}
+
+// ---------- sheet ----------
+function openSheet(html){
+  const host=document.getElementById("sheetHost");
+  host.innerHTML=`<div class="sheet" id="sheet"><div class="panel" role="dialog" aria-modal="true"><div class="wrap">${html}</div></div></div>`;
+  const sh=document.getElementById("sheet");
+  sh.addEventListener("click",e=>{if(e.target===sh||e.target.closest("[data-close]"))closeSheet()});
+}
+function closeSheet(){document.getElementById("sheetHost").innerHTML=""}
+
+// ---------- wiring ----------
+document.querySelectorAll("nav.tabs button").forEach(b=>b.onclick=()=>{if(S.tab==="mark"&&S.dirty&&b.dataset.tab!=="mark"&&!confirmLeave())return;if(b.dataset.tab!=="mark"){S.dirty=false;S.draftKey=""}S.tab=b.dataset.tab;S.search="";render();window.scrollTo(0,0)});
+document.getElementById("saveBtn").onclick=saveDraft;
+render();
+
+// ---------- classes ----------
+function checkReady(){const g=S.got;S.ready=!!(g.cfg&&g.cls&&(!S.cid||(g.stu&&g.att&&g.pay)));render()}
+function attachClass(cid){
+  S.unsub.forEach(u=>{try{u()}catch(e){}});S.unsub=[];
+  S.cid=cid;S.students=[];S.att={};S.pay={};S.draftKey="";S.dirty=false;
+  S.got.stu=S.got.att=S.got.pay=false;
+  if(!cid){checkReady();return}
+  lsSet("sjs-class",cid);
+  const db=S.db;
+  S.unsub.push(db.collection(P("students")).onSnapshot(q=>{if(S.cid!==cid)return;S.students=q.docs.map(d=>d.data()).sort((a,b)=>a.roll-b.roll);S.got.stu=true;checkReady()},()=>{S.got.stu=true;checkReady()}));
+  S.unsub.push(db.collection(P("att")).onSnapshot(q=>{if(S.cid!==cid)return;const m={};q.docs.forEach(d=>m[d.id]=d.data());S.att=m;S.got.att=true;checkReady()},()=>{S.got.att=true;checkReady()}));
+  S.unsub.push(db.collection(P("pay")).onSnapshot(q=>{if(S.cid!==cid)return;const m={};q.docs.forEach(d=>m[d.id]=d.data());S.pay=m;S.got.pay=true;checkReady()},()=>{S.got.pay=true;checkReady()}));
+  checkReady();
+}
+function switchClass(cid){if(S.dirty&&!confirmLeave())return;closeSheet();if(cid!==S.cid){attachClass(cid);const k=S.classes.find(x=>x.id===cid);toast("Opened "+classLabel(k))}window.scrollTo(0,0)}
+function openClassPicker(){
+  if(!S.ready)return;
+  openSheet(`<div class="row between"><h2>Choose class</h2><button class="iconbtn" data-close aria-label="Close">✕</button></div>
+  <div class="list classlist">${S.classes.map(x=>`<button class="stu" data-pick="${esc(x.id)}" ${x.id===S.cid?'aria-current="true"':""}><span class="roll">${esc(x.cls)}</span><span><div class="nm">${esc(classLabel(x))}</div><div class="meta">${esc(x.teacher||"")}</div></span><span class="small muted">${x.id===S.cid?"Open":""}</span></button>`).join("")||`<p class="muted">No classes yet.</p>`}</div>
+  ${S.canWrite?`<button class="btn" id="pickAdd">Add class / section</button>`:""}`);
+  document.querySelectorAll("[data-pick]").forEach(b=>b.onclick=()=>switchClass(b.dataset.pick));
+  const a=document.getElementById("pickAdd");if(a)a.onclick=()=>editClass(null);
+}
+function editClass(k){
+  openSheet(`<h2>${k?"Edit class":"Add class / section"}</h2>
+  <div class="grid2"><label class="field"><span class="label">Class</span><input id="cCls" value="${esc(k?k.cls:"")}" placeholder="e.g. VI"></label>
+  <label class="field"><span class="label">Section</span><input id="cSec" value="${esc(k?k.section:"")}" placeholder="e.g. A (optional)"></label></div>
+  <label class="field"><span class="label">Class teacher</span><input id="cTch" value="${esc(k?k.teacher:"")}"></label>
+  ${k?"":`<p class="small muted">After saving, open the Students tab and use “Paste list” to add the whole class at once.</p>`}
+  <div class="btns"><button class="btn green" id="cSave">${k?"Save changes":"Add class"}</button><button class="btn ghost" data-close>Cancel</button></div>`);
+  document.getElementById("cSave").onclick=async()=>{
+    const cls=document.getElementById("cCls").value.trim(),section=document.getElementById("cSec").value.trim(),teacher=document.getElementById("cTch").value.trim();
+    if(!cls){toast("Enter the class");return}
+    const dup=S.classes.find(x=>x.cls.toLowerCase()===cls.toLowerCase()&&(x.section||"").toLowerCase()===section.toLowerCase()&&(!k||x.id!==k.id));
+    if(dup){toast(classLabel(dup)+" already exists");return}
+    let id=k?k.id:(cls+(section?"-"+section:"")).replace(/[^A-Za-z0-9_\-]/g,"").slice(0,40)||"class";
+    if(!k){let base=id,i=2;while(S.classes.some(x=>x.id===id))id=base+"-"+(i++)}
+    try{await S.db.doc("classes/"+id).set({id,cls,section,teacher,order:k?(k.order||0):Date.now()});closeSheet();toast(k?"Class updated":"Added "+classLabel({cls,section}));if(!k)attachClass(id)}
+    catch(e){toast("Couldn't save the class")}
+  };
+}
+document.getElementById("hdrSub").onclick=openClassPicker;
+
+// ---------- storage: this phone (localStorage) or online (Firebase) ----------
+const LS_KEY="sjs-data-v1", FB_KEY="sjs-firebase-config";
+function snapDoc(path,d){return {id:path.split("/").pop(),exists:d!==undefined,data:()=>d}}
+function parentOf(p){return p.split("/").slice(0,-1).join("/")}
+class LocalStore{
+  constructor(){this.dl={};this.cl={};try{this.data=JSON.parse(localStorage.getItem(LS_KEY)||"{}")}catch(e){this.data={}}}
+  save(){try{localStorage.setItem(LS_KEY,JSON.stringify(this.data));return true}catch(e){toast("Phone storage is full or blocked. Download a backup.");return false}}
+  q(cp){return {docs:Object.keys(this.data).filter(k=>k.startsWith(cp+"/")&&!k.slice(cp.length+1).includes("/")).sort().map(k=>snapDoc(k,this.data[k]))}}
+  doc(path){const self=this;return {path,id:path.split("/").pop(),
+    get:async()=>snapDoc(path,self.data[path]),
+    set:async d=>{self.data[path]=JSON.parse(JSON.stringify(d));self.save();self.emit([path])},
+    delete:async()=>{delete self.data[path];self.save();self.emit([path])},
+    onSnapshot(cb){(self.dl[path]=self.dl[path]||[]).push(cb);setTimeout(()=>cb(snapDoc(path,self.data[path])));return()=>{self.dl[path]=(self.dl[path]||[]).filter(x=>x!==cb)}}}}
+  collection(cp){const self=this;return {path:cp,doc:id=>self.doc(cp+"/"+id),get:async()=>self.q(cp),
+    onSnapshot(cb){(self.cl[cp]=self.cl[cp]||[]).push(cb);setTimeout(()=>cb(self.q(cp)));return()=>{self.cl[cp]=(self.cl[cp]||[]).filter(x=>x!==cb)}}}}
+  emit(paths){const cols=new Set();for(const p of paths){cols.add(parentOf(p));(this.dl[p]||[]).forEach(cb=>setTimeout(()=>cb(snapDoc(p,this.data[p]))))}
+    cols.forEach(cp=>(this.cl[cp]||[]).forEach(cb=>setTimeout(()=>cb(this.q(cp)))))}
+  async writeMany(list){for(const [p,d] of list){if(d===null)delete this.data[p];else this.data[p]=JSON.parse(JSON.stringify(d))}this.save();this.emit(list.map(x=>x[0]))}
+}
+class FbStore{
+  constructor(fs){this.fs=fs}
+  fire(pr){pr.catch(e=>toast("Online sync failed: "+(e&&e.message||"check your connection")));return Promise.resolve()}
+  doc(p){const ref=this.fs.doc(p),self=this;return {path:p,id:ref.id,get:()=>ref.get(),set:d=>self.fire(ref.set(d)),delete:()=>self.fire(ref.delete()),onSnapshot:(n,e)=>ref.onSnapshot(n,e)}}
+  collection(p){const col=this.fs.collection(p),self=this;return {path:p,doc:id=>self.doc(p+"/"+id),get:()=>col.get(),onSnapshot:(n,e)=>col.onSnapshot(n,e)}}
+  async writeMany(list){for(let i=0;i<list.length;i+=400){const b=this.fs.batch();list.slice(i,i+400).forEach(([p,d])=>d===null?b.delete(this.fs.doc(p)):b.set(this.fs.doc(p),d));this.fire(b.commit())}}
+}
+function fbConfig(){try{return JSON.parse(localStorage.getItem(FB_KEY)||"null")}catch(e){return null}}
+function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement("script");s.src=src;s.onload=res;s.onerror=()=>rej(new Error("Couldn't load "+src));document.head.appendChild(s)})}
+function saveFile(name,text,mime){const b=new Blob([text],{type:mime||"text/plain"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500)}
+function pickFile(accept){return new Promise(res=>{const i=document.createElement("input");i.type="file";i.accept=accept;i.onchange=()=>res(i.files[0]||null);i.click()})}
+
+async function exportAll(store){
+  const out={};const put=s=>{if(s.exists)out[s.__p]=s.data()};
+  const c=await store.doc("cfg/main").get();if(c.exists)out["cfg/main"]=c.data();
+  const cls=await store.collection("classes").get();
+  for(const d of cls.docs){out["classes/"+d.id]=d.data();
+    for(const sub of ["students","att","pay"]){const q=await store.collection("c/"+d.id+"/"+sub).get();q.docs.forEach(x=>out["c/"+d.id+"/"+sub+"/"+x.id]=x.data())}}
+  return {app:"sjs-attendance",version:1,exported:new Date().toISOString(),docs:out};
+}
+
+// ---------- import from the Excel register ----------
+function serialToISO(n){const d=new Date(Date.UTC(1899,11,30)+Math.round(n)*864e5);return d.getUTCFullYear()+"-"+pad(d.getUTCMonth()+1)+"-"+pad(d.getUTCDate())}
+function cellISO(c){if(!c)return "";if(c.t==="n")return serialToISO(c.v);if(c.t==="d"&&c.v instanceof Date)return iso(c.v);
+  const m=String(c.v||"").match(/^(\d{4})-(\d{2})-(\d{2})/);return m?m[0]:""}
+async function parseRegister(file){
+  if(!window.XLSX)await loadScript("https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js");
+  const wb=XLSX.read(await file.arrayBuffer(),{type:"array"});
+  const sh=n=>wb.Sheets[n];const val=(ws,a)=>ws&&ws[a]?ws[a].v:undefined;const txt=(ws,a)=>{const v=val(ws,a);return v==null?"":String(v).trim()};
+  const st=sh("Settings"),stu=sh("Students");
+  if(!st||!stu)throw new Error("This isn't the SJS Attendance Register workbook (Settings and Students sheets not found).");
+  const cfg={school:txt(st,"C5"),address:txt(st,"C6"),affiliation:txt(st,"C7"),motto:txt(st,"C8"),year:txt(st,"C14"),
+    principal:txt(st,"B15")==="Principal"?txt(st,"C15"):"",start:cellISO(st.C17)||DEF.start,end:cellISO(st.C18)||DEF.end,countFrom:cellISO(st.C19)||cellISO(st.C17)||DEF.countFrom,
+    minPct:+val(st,"C21")||0.75,sunOff:txt(st,"C22")!=="No",satOff:SAT_OPTS.includes(txt(st,"C23"))?txt(st,"C23"):"None",holidays:[]};
+  for(let r=34;r<=103;r++){const f=cellISO(st["C"+r]);if(f)cfg.holidays.push({name:txt(st,"B"+r)||"Holiday",from:f,to:cellISO(st["D"+r])})}
+  const fn=sh("Fines");if(fn){cfg.fineA=+val(fn,"E7")||0;cfg.fineHD=+val(fn,"E8")||0;cfg.fineL=+val(fn,"E9")||0}
+  const klass={cls:txt(st,"C11"),section:txt(st,"C12"),teacher:txt(st,"C13")};
+  const students=[];
+  for(let r=7;r<=66;r++){const name=txt(stu,"D"+r);if(!name)continue;
+    students.push({roll:+val(stu,"B"+r)||students.length+1,adm:txt(stu,"C"+r),name:name.replace(/\s+/g," "),gender:txt(stu,"E"+r),parent:txt(stu,"F"+r),phone:txt(stu,"G"+r),_i:r-7})}
+  // month sheets
+  const MS=["Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar"];
+  const start=toD(cfg.start);start.setDate(1);const att={};let marks=0;
+  MS.forEach((m,i)=>{const ws=sh(m);if(!ws||!ws["!ref"])return;
+    const d0=new Date(start.getFullYear(),start.getMonth()+i,1),ym=d0.getFullYear()+"-"+pad(d0.getMonth()+1);
+    const two=XLSX.utils.decode_range(ws["!ref"]).e.c>=63;
+    students.forEach(s=>{const r=9+s._i;
+      for(let d=1;d<=31;d++){const day=ym+"-"+pad(d);
+        const get=c=>{const a=XLSX.utils.encode_cell({r:r-1,c});const v=ws[a]?String(ws[a].v).trim().toUpperCase():"";return v};
+        let am,pm;
+        if(two){am=get(2+2*(d-1));pm=get(3+2*(d-1))}else{const v=get(2+(d-1));if(v==="HD"){am="A";pm=""}else{am=v;pm=v}}
+        for(const [ses,code] of [["AM",am],["PM",pm]]){if(code==="A"||code==="L"){const a=att[day]=att[day]||{AM:{},PM:{},takenAM:true,takenPM:true};a[ses][String(s.roll)]=code;marks++}}
+      }});
+  });
+  const pay={};let pays=0;const fc=sh("Fine Collection");
+  if(fc){students.forEach(s=>{for(let i=0;i<12;i++){const c=fc[XLSX.utils.encode_cell({r:12+s._i,c:2+i})];if(!c||c.v===""||c.v==null)continue;
+    const d0=new Date(start.getFullYear(),start.getMonth()+i,1),ym=d0.getFullYear()+"-"+pad(d0.getMonth()+1);
+    (pay[ym]=pay[ym]||{})[String(s.roll)]=cellISO(c)||todayISO();pays++}})}
+  return {cfg,klass,students,att,pay,marks,pays};
+}
+async function importRegister(){
+  const file=await pickFile(".xlsx,.xlsm");if(!file)return;
+  let R;try{toast("Reading "+file.name+"…");R=await parseRegister(file)}catch(e){toast(e.message||"Couldn't read that file");return}
+  const ex=S.classes.find(x=>x.cls.toLowerCase()===R.klass.cls.toLowerCase()&&(x.section||"").toLowerCase()===R.klass.section.toLowerCase());
+  openSheet(`<h2>Import from Excel</h2>
+  <div class="card"><div style="font-weight:700">${esc(classLabel(R.klass))}${R.klass.teacher?" • "+esc(R.klass.teacher):""}</div>
+  <div class="small muted" style="margin-top:6px">${R.students.length} students • ${Object.keys(R.att).length} days with absences/leave (${R.marks} marks) • ${R.pays} fine payments • ${R.cfg.holidays.length} holidays</div></div>
+  ${ex?`<div class="banner warn">${esc(classLabel(ex))} is already in the app. Students and marks from the file will replace the same rolls and dates.</div>`:""}
+  <label class="row small"><input type="checkbox" id="impCfg" checked> Also update school settings (fines, holidays, Saturdays, Principal)</label>
+  <div class="btns"><button class="btn green" id="impGo">Import</button><button class="btn ghost" data-close>Cancel</button></div>`);
+  document.getElementById("impGo").onclick=async()=>{
+    let id=ex?ex.id:(R.klass.cls+(R.klass.section?"-"+R.klass.section:"")).replace(/[^A-Za-z0-9_\-]/g,"").slice(0,40)||"class";
+    if(!ex){let b=id,i=2;while(S.classes.some(x=>x.id===id))id=b+"-"+(i++)}
+    const list=[["classes/"+id,{id,cls:R.klass.cls||"?",section:R.klass.section,teacher:R.klass.teacher,order:ex?(ex.order||0):Date.now()}]];
+    if(document.getElementById("impCfg").checked)list.push(["cfg/main",Object.assign({},DEF,S.cfg||{},R.cfg)]);
+    R.students.forEach(s=>{const o=Object.assign({},s);delete o._i;list.push(["c/"+id+"/students/r"+String(s.roll).padStart(3,"0"),o])});
+    Object.entries(R.att).forEach(([d,a])=>list.push(["c/"+id+"/att/"+d,a]));
+    Object.entries(R.pay).forEach(([ym,p])=>list.push(["c/"+id+"/pay/"+ym,Object.assign({},(ex&&S.cid===id&&S.pay[ym])||{},p)]));
+    await S.db.writeMany(list);closeSheet();attachClass(id);S.tab="dash";S.month=todayISO().slice(0,7);toast("Imported "+classLabel(R.klass));
+  };
+}
+
+// ---------- start-up ----------
+S.local=new LocalStore();S.mode="local";S.user=null;S.subs=[];S.installEvt=null;
+window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();S.installEvt=e;if(S.tab==="more")render()});
+window.addEventListener("appinstalled",()=>{S.installEvt=null;toast("App installed")});
+function stopData(){[...S.subs,...S.unsub].forEach(u=>{try{u()}catch(e){}});S.subs=[];S.unsub=[];S.db=null;S.cfg=null;S.classes=[];S.cid=null;S.students=[];S.att={};S.pay={};S.got={}}
+function startData(store){
+  stopData();S.db=store;S.ready=false;
+  S.subs.push(store.doc("cfg/main").onSnapshot(s=>{S.cfg=s.exists?s.data():null;S.got.cfg=true;checkReady()},()=>{S.got.cfg=true;checkReady()}));
+  S.subs.push(store.collection("classes").onSnapshot(q=>{
+    S.classes=q.docs.map(d=>d.data()).sort((a,b)=>(a.order||0)-(b.order||0)||String(a.cls).localeCompare(String(b.cls))||String(a.section).localeCompare(String(b.section)));
+    S.got.cls=true;
+    const want=S.cid&&S.classes.some(x=>x.id===S.cid)?S.cid:(S.classes.some(x=>x.id===lsGet("sjs-class"))?lsGet("sjs-class"):(S.classes[0]||{}).id||null);
+    if(want!==S.cid)attachClass(want);else checkReady();
+  },()=>{S.got.cls=true;checkReady()}));
+}
+async function boot(){
+  const cfg=fbConfig();
+  if(!cfg){startData(S.local);return}
+  S.mode="online";
+  try{
+    const b="https://www.gstatic.com/firebasejs/10.12.2/";
+    await loadScript(b+"firebase-app-compat.js");await loadScript(b+"firebase-auth-compat.js");await loadScript(b+"firebase-firestore-compat.js");
+    if(!firebase.apps.length)firebase.initializeApp(cfg);
+    const fs=firebase.firestore();try{await fs.enablePersistence({synchronizeTabs:true})}catch(e){}
+    S.fs=fs;
+    firebase.auth().onAuthStateChanged(u=>{S.user=u;if(u){startData(new FbStore(fs))}else{stopData();S.ready=true;render()}});
+  }catch(e){
+    S.mode="local";S.syncError=true;startData(S.local);
+    setTimeout(()=>toast("No internet: online sync couldn't start. Showing this phone's own data."),600);
+  }
+}
+function viewLogin(v){
+  hideSave();
+  v.innerHTML=`<div class="card"><h2>Sign in</h2><p class="small muted">Online sync is on. Sign in with the email and password your school admin created for you.</p>
+  <form id="loginF" style="display:flex;flex-direction:column;gap:10px;margin-top:8px">
+  <label class="field"><span class="label">Email</span><input id="lE" type="email" autocomplete="username" required></label>
+  <label class="field"><span class="label">Password</span><input id="lP" type="password" autocomplete="current-password" required></label>
+  <button class="btn" id="lGo" type="submit">Sign in</button><p class="small" id="lErr" style="color:var(--absent);margin:0"></p></form></div>
+  <div class="card"><h3>Use without online sync</h3><p class="small muted">Turns online sync off on this phone. Attendance will be saved on this phone only.</p><button class="btn ghost" id="lOff">Turn off online sync</button></div>`;
+  v.querySelector("#loginF").onsubmit=async e=>{e.preventDefault();const err=v.querySelector("#lErr");err.textContent="";v.querySelector("#lGo").disabled=true;
+    try{await firebase.auth().signInWithEmailAndPassword(v.querySelector("#lE").value.trim(),v.querySelector("#lP").value)}
+    catch(x){err.textContent=/network/i.test(x.code||"")?"No internet connection. Try again when online.":"Wrong email or password.";v.querySelector("#lGo").disabled=false}};
+  v.querySelector("#lOff").onclick=()=>{try{localStorage.removeItem(FB_KEY)}catch(e){}location.reload()};
+}
+function dataCard(){
+  const online=S.mode==="online";
+  return `<div class="card"><h3>Data &amp; sync</h3>
+  <p class="small" style="margin:6px 0 10px">${online?`<b style="color:var(--present)">● Online sync on</b> — signed in as ${esc(S.user&&S.user.email||"")}. Works offline too; changes upload when internet returns.`:`<b>● Saved on this phone only.</b> ${S.syncError?"Online sync is set up but couldn't start (no internet).":"Download a backup now and then."}`}</p>
+  <div class="btns"><button class="btn" id="dImp">Import from Excel register</button><button class="btn ghost" id="dBak">Download backup</button><button class="btn ghost" id="dRes">Restore backup</button></div>
+  <div class="btns" style="margin-top:8px">${online?`<button class="btn ghost" id="dUp">Upload this phone's data</button><button class="btn ghost" id="dOut">Sign out</button><button class="btn ghost" id="dOff">Turn off online sync</button>`:`<button class="btn ghost" id="dOn">Set up online sync</button>`}</div></div>
+  <div class="card"><h3>Install on this phone</h3>
+  ${window.matchMedia("(display-mode: standalone)").matches?`<p class="small muted">The app is installed. Open it from your home screen.</p>`:
+   S.installEvt?`<p class="small muted">Adds the app to your home screen. It opens full screen and works without internet.</p><button class="btn green" id="dInst">Install app</button>`:
+   `<p class="small muted"><b>Android (Chrome):</b> tap the ⋮ menu → <b>Install app</b> or <b>Add to Home screen</b>.<br><b>iPhone (Safari):</b> tap Share → <b>Add to Home Screen</b>.</p>`}</div>`;
+}
+function wireDataCard(v){
+  const on=(id,f)=>{const b=v.querySelector(id);if(b)b.onclick=f};
+  on("#dImp",importRegister);
+  on("#dBak",async()=>{const d=await exportAll(S.db);saveFile("SJS_Attendance_backup_"+todayISO()+".json",JSON.stringify(d),"application/json");toast("Backup downloaded")});
+  on("#dRes",async()=>{const f=await pickFile(".json,application/json");if(!f)return;let d;try{d=JSON.parse(await f.text())}catch(e){toast("That file isn't a backup");return}
+    if(!d||d.app!=="sjs-attendance"||!d.docs){toast("That file isn't an SJS Attendance backup");return}
+    const n=Object.keys(d.docs).length;
+    openSheet(`<h2>Restore backup</h2><p>Backup from ${esc((d.exported||"").slice(0,10))} with ${n} records. Records in the backup replace the same records here; nothing else is deleted.</p><div class="btns"><button class="btn green" id="rGo">Restore</button><button class="btn ghost" data-close>Cancel</button></div>`);
+    document.getElementById("rGo").onclick=async()=>{await S.db.writeMany(Object.entries(d.docs));closeSheet();toast("Backup restored")}});
+  on("#dInst",async()=>{const e=S.installEvt;if(!e)return;e.prompt();try{await e.userChoice}catch(x){}S.installEvt=null;render()});
+  on("#dOn",setupSync);
+  on("#dOut",()=>firebase.auth().signOut());
+  on("#dOff",()=>{try{localStorage.removeItem(FB_KEY)}catch(e){}location.reload()});
+  on("#dUp",()=>{const list=Object.entries(S.local.data);if(!list.length){toast("No data saved on this phone");return}
+    openSheet(`<h2>Upload this phone's data</h2><p>Copies the ${list.length} records saved on this phone (from before online sync) to the online register. Same classes, rolls and dates are replaced.</p><div class="btns"><button class="btn green" id="uGo">Upload</button><button class="btn ghost" data-close>Cancel</button></div>`);
+    document.getElementById("uGo").onclick=async()=>{await S.db.writeMany(list);closeSheet();toast("Uploaded "+list.length+" records")}});
+}
+function setupSync(){
+  openSheet(`<h2>Set up online sync</h2>
+  <p class="small">Online sync lets every teacher and the Principal see the same register. It uses a free Google Firebase project — follow the steps in the setup guide, then paste the <b>firebaseConfig</b> here (the whole block is fine).</p>
+  <textarea class="out" id="fbTxt" placeholder='const firebaseConfig = {&#10;  apiKey: "...",&#10;  authDomain: "...",&#10;  projectId: "...",&#10;  ...&#10;};'></textarea>
+  <p class="small muted">Tip: after signing in, use “Upload this phone's data” to copy what you already marked on this phone.</p>
+  <div class="btns"><button class="btn green" id="fbGo">Save and turn on</button><button class="btn ghost" data-close>Cancel</button></div>`);
+  document.getElementById("fbGo").onclick=()=>{
+    const raw=document.getElementById("fbTxt").value;const m=raw.match(/\{[\s\S]*\}/);
+    let cfg=null;if(m){try{cfg=JSON.parse(m[0].replace(/([{,]\s*)([A-Za-z_][A-Za-z0-9_]*)\s*:/g,'$1"$2":').replace(/'/g,'"').replace(/,\s*}/g,"}"))}catch(e){}}
+    if(!cfg||!cfg.apiKey||!cfg.projectId){toast("That doesn't look like a firebaseConfig — it needs apiKey and projectId");return}
+    try{localStorage.setItem(FB_KEY,JSON.stringify(cfg))}catch(e){toast("Couldn't save on this phone");return}
+    location.reload();
+  };
+}
+if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}))}
+boot();
+
+})();
+</script>
+
+</body>
+</html>
