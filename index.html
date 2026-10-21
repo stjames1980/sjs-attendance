@@ -386,9 +386,13 @@ function viewDash(v){
     <div class="seg" style="width:200px"><button data-scope="month" aria-pressed="${S.lowScope==="month"}">Month</button><button data-scope="session" aria-pressed="${S.lowScope==="session"}">Session</button></div></div>
     ${scopeRows.length?`<div class="tablewrap"><table><thead><tr><th>Student</th><th>Days</th><th>%</th><th>Need</th></tr></thead><tbody>${scopeRows.map(r=>`<tr><td>${r.st.roll}. ${esc(r.st.name)}</td><td>${r.x.present.toFixed(1)}/${r.x.W}</td><td class="pct-low">${pct(r.x.pct)}</td><td>${daysNeeded(r.x.present,r.x.W,c.minPct)}</td></tr>`).join("")}</tbody></table></div>
     <p class="small muted">“Need” = days of full attendance needed to reach ${Math.round(c.minPct*100)}%.</p>`:`<p class="muted">No student is below ${Math.round(c.minPct*100)}%.</p>`}
-    <div class="btns"><button class="btn sm" id="repBtn">Copy report for Principal</button></div></div>`;
+    <div class="btns"><button class="btn sm" id="repBtn">Copy report for Principal</button></div></div>
+  <div class="card"><h3>Monthly report – ${monthLabel(S.month)}</h3><p class="small muted">Full register for the month: daily AM/PM marks, totals, attendance % and fines for every student.</p>
+    <div class="btns"><button class="btn green" id="mrPrint">Print monthly report</button><button class="btn ghost" id="mrCsv">Download for Excel</button></div></div>`;
   v.querySelectorAll("#mchips [data-m]").forEach(b=>b.onclick=()=>{S.month=b.dataset.m;render()});
   v.querySelectorAll("[data-scope]").forEach(b=>b.onclick=()=>{S.lowScope=b.dataset.scope;render()});
+  v.querySelector("#mrPrint").onclick=()=>printMonthlyReport(S.month);
+  v.querySelector("#mrCsv").onclick=()=>downloadMonthlyReport(S.month);
   v.querySelector("#repBtn").onclick=()=>{
     const per=S.lowScope==="month"?monthLabel(S.month):"Whole session";
     const t=`To: ${c.principal||"The Principal"}, ${c.school}\nAttendance report – Class ${c.cls}${c.section?" - "+c.section:""} – ${monthLabel(S.month)}\n\nStudents: ${cm.N}\nWorking days: ${cm.W}\nClass average: ${pct(cm.avg)}\nFull-day absences: ${cm.full} | Half-day: ${cm.half} | Leave days: ${cm.ldays}\nFine due: Rs ${cm.fine} | Collected: Rs ${collected}\n\nBelow ${Math.round(c.minPct*100)}% (${per}): ${scopeRows.length}\n${scopeRows.map((r,i)=>`${i+1}. ${r.st.name} (Roll ${r.st.roll}) – ${pct(r.x.pct)}, needs ${daysNeeded(r.x.present,r.x.W,c.minPct)} days`).join("\n")||"None"}\n\n— ${c.teacher}, Class Teacher`;
@@ -419,6 +423,55 @@ function downloadStudentList(){
     ["Roll No","Admission No","Student Name","Gender","Parent / Guardian","Phone","Working days","Present","Full absent","Half absent","Leave","Attendance %"].map(q).join(",")];
   studentListRows().forEach(({st,x})=>out.push([st.roll,q(st.adm),q(st.name),q(st.gender),q(st.parent),q(st.phone?"'"+st.phone:""),x.W,x.present,x.full,x.half,x.ldays,x.pct==null?"":(x.pct*100).toFixed(1)].join(",")));
   saveFile("Student_List_"+(k.cls||"")+(k.section?"-"+k.section:"")+"_"+todayISO()+".csv","\ufeff"+out.join("\n"),"text/csv");toast("Student list downloaded");
+}
+function dayMark(s,roll){const st=status(s);
+  if(st==="HOL")return {t:"H",k:"hol"};if(st==="OFF")return {t:toD(s).getDay()===0?"S":"–",k:"off"};if(st!=="W")return {t:"",k:"na"};
+  const am=codeOf(s,"AM",roll),pm=codeOf(s,"PM",roll);
+  if(am===pm)return am==="P"?{t:"•",k:"p"}:{t:am,k:am==="A"?"a":"l"};
+  return {t:(am==="P"?"P":am)+"/"+(pm==="P"?"P":pm),k:(am==="A"||pm==="A")?"h":"l"};}
+function printHTML(html){const f=document.createElement("iframe");f.style.cssText="position:fixed;right:0;bottom:0;width:0;height:0;border:0";document.body.appendChild(f);
+  const d=f.contentWindow.document;d.open();d.write(html);d.close();
+  setTimeout(()=>{try{f.contentWindow.focus();f.contentWindow.print()}catch(e){toast("Couldn't open print")}setTimeout(()=>f.remove(),60000)},300);}
+function printMonthlyReport(ym){
+  const c=C(),k=S.classes.find(x=>x.id===S.cid)||{},cm=classMonth(ym),n=daysIn(ym);
+  if(!S.students.length){toast("No students in this class");return}
+  const collected=cm.rows.reduce((a,r)=>a+(paidOn(ym,r.st.roll)?r.x.fine:0),0);
+  let head="";for(let d=1;d<=n;d++){const s=ym+"-"+pad(d);const st=status(s);head+=`<th class="d ${st==="W"?"":"sh"}">${d}<br><small>${DN[toD(s).getDay()].slice(0,2)}</small></th>`}
+  const rows=cm.rows.slice().sort((a,b)=>a.st.roll-b.st.roll).map(({st,x})=>{let cells="";
+    for(let d=1;d<=n;d++){const m=dayMark(ym+"-"+pad(d),st.roll);cells+=`<td class="d ${m.k}">${m.t}</td>`}
+    const low=x.pct!=null&&x.pct<c.minPct;
+    return `<tr><td class="c">${st.roll}</td><td class="nm">${esc(st.name)}</td>${cells}<td class="c">${x.present%1?x.present.toFixed(1):x.present}</td><td class="c">${x.full}</td><td class="c">${x.half}</td><td class="c">${x.ldays%1?x.ldays.toFixed(1):x.ldays}</td><td class="c ${low?"low":""}">${pct(x.pct)}</td><td class="c">${x.fine||""}</td></tr>`}).join("");
+  let daily="";for(let d=1;d<=n;d++){const s=ym+"-"+pad(d);if(status(s)!=="W"){daily+=`<td class="d sh"></td>`;continue}
+    let tot=0;for(const x of S.students)tot+=(codeOf(s,"AM",x.roll)==="P")*0.5+(codeOf(s,"PM",x.roll)==="P")*0.5;daily+=`<td class="d">${tot%1?tot.toFixed(1):tot}</td>`}
+  const hol=(c.holidays||[]).filter(h=>{const to=h.to||h.from;return h.from<=ym+"-31"&&to>=ym+"-01"}).map(h=>esc(h.name)+" ("+h.from.slice(8)+(h.to&&h.to!==h.from?"–"+h.to.slice(8):"")+")").join(", ");
+  const html=`<!doctype html><html><head><meta charset="utf-8"><title>Monthly Attendance Report - ${esc(classLabel(k))} - ${monthLabel(ym)}</title><style>
+  @page{size:A4 landscape;margin:8mm}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}body{font-family:Arial,sans-serif;color:#000;font-size:9px;margin:0}
+  h1{font-size:16px;margin:0;text-align:center}.sub{text-align:center;margin:1px 0;font-size:10px}.ttl{text-align:center;font-weight:bold;font-size:12px;margin:3px 0;color:#1E3A8A}
+  .info{display:flex;justify-content:space-between;margin:4px 0;font-weight:bold;font-size:10px}
+  table{width:100%;border-collapse:collapse;table-layout:auto}th,td{border:1px solid #555;padding:1px 2px}th{background:#1E3A8A;color:#fff;font-size:8.5px}
+  .d{text-align:center;width:16px;font-size:8px}.c{text-align:center}.nm{white-space:nowrap;max-width:130px;overflow:hidden}
+  th.sh,td.sh,td.off,td.hol{background:#d9d9d9}td.hol{color:#7a4b00;font-weight:bold}td.na{background:#f3f3f3}td.p{color:#2e7d32}
+  td.a{background:#fde0e0;color:#b00020;font-weight:bold}td.h{background:#fff1d6;color:#a35a00;font-size:6.5px}td.l{background:#e3ecff;color:#1E3A8A;font-weight:bold}
+  td.low{color:#b00020;font-weight:bold}tr.tot td{font-weight:bold;background:#eef2fb}
+  .sum{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-top:6px}.sum div{border:1px solid #999;padding:3px;text-align:center;font-size:9px}.sum b{display:block;font-size:12px}
+  .key{margin-top:4px;font-size:8.5px}.sign{display:flex;justify-content:space-between;margin-top:26px;font-size:10px}.sign div{border-top:1px solid #000;padding-top:3px;width:170px;text-align:center}</style></head><body>
+  <h1>${esc(c.school||"St. James H.S. School")}</h1>${c.address?`<div class="sub">${esc(c.address)}</div>`:""}
+  <div class="ttl">MONTHLY ATTENDANCE REPORT – ${monthLabel(ym).toUpperCase()}</div>
+  <div class="info"><span>${esc(classLabel(k))}</span><span>Class teacher: ${esc(k.teacher||"")}</span><span>Session ${esc(c.year||"")}</span><span>Working days: ${cm.W}</span></div>
+  <table><thead><tr><th>Roll</th><th>Student Name</th>${head}<th>Present</th><th>Full<br>Abs</th><th>Half<br>Abs</th><th>Leave</th><th>%</th><th>Fine<br>Rs</th></tr></thead>
+  <tbody>${rows}<tr class="tot"><td colspan="2">Present each day</td>${daily}<td class="c" colspan="6">Class average ${pct(cm.avg)}</td></tr></tbody></table>
+  <div class="sum"><div>Students<b>${cm.N}</b></div><div>Working days<b>${cm.W}</b></div><div>Class average<b>${pct(cm.avg)}</b></div><div>Below ${Math.round(c.minPct*100)}%<b>${cm.below.length}</b></div><div>Absences (Full / Half / Leave)<b>${cm.full} / ${cm.half} / ${cm.ldays}</b></div><div>Fine due / collected<b>Rs ${cm.fine} / ${collected}</b></div></div>
+  <div class="key"><b>Key:</b> • Present &nbsp; A Absent (full day) &nbsp; A/P or P/A Half day (AM/PM) &nbsp; L Leave &nbsp; H Holiday &nbsp; S Sunday &nbsp; – Off day${hol?` &nbsp; | <b>Holidays:</b> ${hol}`:""}${cm.below.length?` &nbsp; | <b>Below ${Math.round(c.minPct*100)}%:</b> ${cm.below.map(r=>esc(r.st.name)+" ("+pct(r.x.pct)+")").join(", ")}`:""}</div>
+  <div class="sign"><div>Class Teacher</div><div>Checked by</div><div>Principal${c.principal?"<br>"+esc(c.principal):""}</div></div></body></html>`;
+  printHTML(html);
+}
+function downloadMonthlyReport(ym){
+  const c=C(),k=S.classes.find(x=>x.id===S.cid)||{},cm=classMonth(ym),n=daysIn(ym);const q=v=>'"'+String(v??"").replace(/"/g,'""')+'"';
+  const hd=["Roll","Student Name"];for(let d=1;d<=n;d++)hd.push(d);hd.push("Present","Full Absent","Half Absent","Leave","Attendance %","Fine Rs");
+  const out=[q(c.school||"St. James H.S. School"),q("Monthly Attendance Report - "+monthLabel(ym)),q(classLabel(k)+(k.teacher?" - Class teacher: "+k.teacher:"")),q("Working days: "+cm.W+"   Class average: "+pct(cm.avg)),"",hd.map(q).join(",")];
+  cm.rows.slice().sort((a,b)=>a.st.roll-b.st.roll).forEach(({st,x})=>{const r=[st.roll,q(st.name)];for(let d=1;d<=n;d++){const m=dayMark(ym+"-"+pad(d),st.roll);r.push(q(m.t==="•"?"P":m.t))}
+    r.push(x.present,x.full,x.half,x.ldays,x.pct==null?"":(x.pct*100).toFixed(1),x.fine);out.push(r.join(","))});
+  saveFile("Monthly_Report_"+(k.cls||"")+(k.section?"-"+k.section:"")+"_"+ym+".csv","﻿"+out.join("\n"),"text/csv");toast("Monthly report downloaded");
 }
 function printStudentList(){
   const k=S.classes.find(x=>x.id===S.cid)||{};const c=C();
