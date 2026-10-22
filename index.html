@@ -389,6 +389,8 @@ function viewDash(v){
     <div class="btns"><button class="btn sm" id="repBtn">Copy report for Principal</button></div></div>
   <div class="card"><h3>Monthly report – ${monthLabel(S.month)}</h3><p class="small muted">Page 1: full register with daily AM/PM marks, totals and %. Page 2: fine collection and shortage-of-attendance list.</p>
     <div class="btns"><button class="btn green" id="mrPrint">Print monthly report</button><button class="btn ghost" id="mrCsv">Download for Excel</button></div></div>
+  <div class="card"><h3>Messages to parents</h3><p class="small muted">Send each parent their child's daily or monthly attendance on WhatsApp or SMS. One tap per parent opens the message ready to send.</p>
+    <div class="btns"><button class="btn green" id="msgDaily">Daily message</button><button class="btn" id="msgMonthly">Monthly report message</button></div></div>
   <div class="card"><h3>Fine collection list – ${monthLabel(S.month)}</h3><p class="small muted">Students with fines this month, amount, paid date and Paid / Pending.</p>
     <div class="btns"><button class="btn" id="fnPrint">Print fine list</button><button class="btn ghost" id="fnCsv">Download for Excel</button></div></div>
   <div class="card"><h3>Shortage of attendance list</h3><p class="small muted">Students below ${Math.round(c.minPct*100)}% in ${monthLabel(S.month)} or for the session, with days needed and parent phone.</p>
@@ -397,6 +399,8 @@ function viewDash(v){
   v.querySelectorAll("[data-scope]").forEach(b=>b.onclick=()=>{S.lowScope=b.dataset.scope;render()});
   v.querySelector("#mrPrint").onclick=()=>printMonthlyReport(S.month);
   v.querySelector("#mrCsv").onclick=()=>downloadMonthlyReport(S.month);
+  v.querySelector("#msgDaily").onclick=()=>openParentMsgs("daily");
+  v.querySelector("#msgMonthly").onclick=()=>openParentMsgs("monthly");
   v.querySelector("#fnPrint").onclick=()=>printFineList(S.month);
   v.querySelector("#fnCsv").onclick=()=>downloadFineList(S.month);
   v.querySelector("#shPrint").onclick=()=>printShortageList(S.month);
@@ -442,6 +446,62 @@ function printHTML(html){const f=document.createElement("iframe");f.style.cssTex
   setTimeout(()=>{try{f.contentWindow.focus();f.contentWindow.print()}catch(e){toast("Couldn't open print")}setTimeout(()=>f.remove(),60000)},300);}
 function shortageList(ym){const c=C();return S.students.map(st=>({st,m:statsFor(st.roll,ym),s:sessionStats(st.roll)}))
   .filter(r=>(r.m.pct!=null&&r.m.pct<c.minPct)||(r.s.pct!=null&&r.s.pct<c.minPct)).sort((a,b)=>(a.s.pct??1)-(b.s.pct??1)||a.st.roll-b.st.roll)}
+// ---------- messages to parents ----------
+const PM={mode:"daily",date:"",ym:"",onlyAbs:true,sent:{}};
+function waPhone(p){let d=String(p||"").replace(/\D/g,"");if(d.length===11&&d[0]==="0")d=d.slice(1);if(d.length===10)d="91"+d;return d.length>=11&&d.length<=13?d:""}
+function sentKey(){return "sjs-sent-"+S.cid+"-"+(PM.mode==="daily"?PM.date:PM.ym)}
+function loadSent(){try{PM.sent=JSON.parse(localStorage.getItem(sentKey())||"{}")}catch(e){PM.sent={}}}
+function markSent(roll){PM.sent[roll]=1;try{localStorage.setItem(sentKey(),JSON.stringify(PM.sent))}catch(e){}}
+function dailyInfo(roll,day){const am=codeOf(day,"AM",roll),pm=codeOf(day,"PM",roll);
+  if(am==="P"&&pm==="P")return {abs:false,txt:"PRESENT"};
+  if(am==="A"&&pm==="A")return {abs:true,txt:"ABSENT (full day)"};
+  if(am==="L"&&pm==="L")return {abs:true,txt:"ON LEAVE"};
+  const w=c=>c==="A"?"absent":c==="L"?"on leave":"present";return {abs:true,txt:"absent for half day (morning "+w(am)+", afternoon "+w(pm)+")"}}
+function parentMsg(st,day){const c=C(),k=S.classes.find(x=>x.id===S.cid)||{},sign="\n\n– "+(k.teacher?k.teacher+", Class Teacher\n":"Class Teacher\n")+(c.school||"St. James H.S. School");
+  const who=st.name+" ("+classLabel(k)+", Roll "+st.roll+")";
+  if(PM.mode==="daily"){const i=dailyInfo(st.roll,day);
+    return "Dear Parent,\nYour ward "+who+" was "+i.txt+(day===todayISO()?" today, ":" on ")+fmtDate(day)+"."+(i.abs?"\nPlease ensure regular attendance. If there was a reason, kindly inform the class teacher.":"")+sign}
+  const x=statsFor(st.roll,PM.ym),ss=sessionStats(st.roll),f=n=>n%1?n.toFixed(1):n,pd=paidOn(PM.ym,st.roll);
+  let t="Dear Parent,\nAttendance report of "+who+" for "+monthLabel(PM.ym)+":\n• Present: "+f(x.present)+" of "+x.W+" working days ("+pct(x.pct)+")\n• Absent: "+x.full+" full day, "+x.half+" half day"+(x.ldays?"\n• Leave: "+f(x.ldays)+" day(s)":"")+"\n• Session attendance so far: "+pct(ss.pct);
+  if(x.fine)t+="\n• Fine: Rs "+x.fine+(pd?" (paid)":" (pending)");
+  if(ss.pct!=null&&ss.pct<c.minPct)t+="\n\n⚠ Attendance is below "+Math.round(c.minPct*100)+"%. "+daysNeeded(ss.present,ss.W,c.minPct)+" more days of full attendance are needed to reach "+Math.round(c.minPct*100)+"%.";
+  return t+sign}
+function pmRows(){const day=PM.date;return S.students.slice().sort((a,b)=>a.roll-b.roll).filter(st=>PM.mode!=="daily"||!PM.onlyAbs||dailyInfo(st.roll,day).abs)}
+function openParentMsgs(mode){if(!S.students.length){toast("No students in this class");return}
+  PM.mode=mode||PM.mode;if(!PM.date)PM.date=todayISO();PM.ym=S.month;loadSent();renderPM()}
+function renderPM(){const day=PM.date,rows=pmRows(),daily=PM.mode==="daily";
+  const st=status(day),taken=(S.att[day]||{}).takenAM||(S.att[day]||{}).takenPM;
+  const warn=daily&&st!=="W"?`<div class="banner off">${esc(fmtDate(day))} is ${st==="HOL"?"a holiday":st==="OFF"?"a weekly off":"not a working day"}.</div>`:daily&&!taken&&!Object.keys(S.att[day]||{}).length?`<div class="banner warn">Attendance for ${esc(fmtDate(day))} hasn't been saved yet. Mark attendance first.</div>`:"";
+  const withPh=rows.filter(r=>waPhone(r.phone)),left=withPh.filter(r=>!PM.sent[r.roll]);
+  openSheet(`<h2>Messages to parents</h2>
+  <div class="seg" style="margin:6px 0 10px"><button data-pm="daily" aria-pressed="${daily}">Daily</button><button data-pm="monthly" aria-pressed="${!daily}">Monthly</button></div>
+  ${daily?`<div class="grid2"><label class="field"><span class="label">Date</span><input type="date" id="pmDate" value="${esc(day)}"></label>
+    <label class="row small" style="align-self:end;gap:6px"><input type="checkbox" id="pmAbs" ${PM.onlyAbs?"checked":""}> Absent / leave only</label></div>`
+  :`<label class="field"><span class="label">Month</span><select id="pmYm">${months().map(m=>`<option value="${m}" ${m===PM.ym?"selected":""}>${monthLabel(m)}</option>`).join("")}</select></label>`}
+  ${warn}
+  <div class="card" style="margin-top:10px"><div class="row between"><b>${rows.length} parent${rows.length===1?"":"s"}</b><span class="small muted">Sent ${withPh.length-left.length} of ${withPh.length}${rows.length>withPh.length?" • "+(rows.length-withPh.length)+" without phone":""}</span></div>
+    ${left.length?`<div class="btns" style="margin-top:8px"><button class="btn green" id="pmNext">Send next on WhatsApp (${esc(left[0].name)})</button></div>`:withPh.length?`<p class="small" style="margin:8px 0 0">✓ All messages sent.</p>`:""}</div>
+  <div class="list" style="margin-top:8px">${rows.map(r=>{const ph=waPhone(r.phone);const info=daily?dailyInfo(r.roll,day).txt:pct(statsFor(r.roll,PM.ym).pct);
+    return `<div class="stu" style="cursor:default"><span class="roll">${r.roll}</span><span><div class="nm">${esc(r.name)}${PM.sent[r.roll]?" ✓":""}</div><div class="meta">${esc(info)} • ${ph?esc(r.phone):"<b>No phone</b> – add in Students"}</div></span>
+    <span class="row" style="gap:6px">${ph?`<button class="chip" data-wa="${r.roll}">WhatsApp</button><button class="chip" data-sms="${r.roll}">SMS</button>`:""}<button class="chip" data-cp="${r.roll}">Copy</button></span></div>`}).join("")||`<p class="muted">${daily?"No absentees on this day.":"No students."}</p>`}</div>
+  <div class="btns" style="margin-top:10px"><button class="btn ghost" id="pmAll">Copy all messages</button>${daily?`<button class="btn ghost" id="pmGroup">Copy class summary for group</button>`:""}<button class="btn ghost" id="pmReset">Clear ✓ marks</button><button class="btn ghost" data-close>Close</button></div>
+  <p class="small muted">Each parent must be sent one by one (WhatsApp doesn't allow automatic bulk sending). After sending, come back here and tap <b>Send next</b>.</p>`);
+  const h=document.getElementById("sheetHost"),get=r=>S.students.find(x=>x.roll==r);
+  h.querySelectorAll("[data-pm]").forEach(b=>b.onclick=()=>{PM.mode=b.dataset.pm;loadSent();renderPM()});
+  const d=h.querySelector("#pmDate");if(d)d.onchange=()=>{PM.date=d.value||todayISO();loadSent();renderPM()};
+  const a=h.querySelector("#pmAbs");if(a)a.onchange=()=>{PM.onlyAbs=a.checked;renderPM()};
+  const y=h.querySelector("#pmYm");if(y)y.onchange=()=>{PM.ym=y.value;loadSent();renderPM()};
+  const wa=st=>{window.open("https://wa.me/"+waPhone(st.phone)+"?text="+encodeURIComponent(parentMsg(st,day)),"_blank");markSent(st.roll);setTimeout(renderPM,400)};
+  h.querySelectorAll("[data-wa]").forEach(b=>b.onclick=()=>wa(get(b.dataset.wa)));
+  h.querySelectorAll("[data-sms]").forEach(b=>b.onclick=()=>{const st=get(b.dataset.sms);location.href="sms:+"+waPhone(st.phone)+"?body="+encodeURIComponent(parentMsg(st,day));markSent(st.roll);setTimeout(renderPM,400)});
+  h.querySelectorAll("[data-cp]").forEach(b=>b.onclick=()=>{navigator.clipboard.writeText(parentMsg(get(b.dataset.cp),day)).then(()=>toast("Copied"),()=>toast("Couldn't copy"))});
+  const nx=h.querySelector("#pmNext");if(nx)nx.onclick=()=>wa(left[0]);
+  h.querySelector("#pmAll").onclick=()=>{const t=rows.map(r=>"To: "+(r.parent||"Parent of "+r.name)+(r.phone?" ("+r.phone+")":"")+"\n"+parentMsg(r,day)).join("\n\n——————\n\n");closeSheet();copyText(t)};
+  const g=h.querySelector("#pmGroup");if(g)g.onclick=()=>{const c=C(),k=S.classes.find(x=>x.id===S.cid)||{};const ab=S.students.filter(s=>dailyInfo(s.roll,day).abs).sort((a,b)=>a.roll-b.roll);
+    const t=c.school+"\n"+classLabel(k)+" – Attendance, "+fmtDate(day)+"\nPresent: "+(S.students.length-ab.length)+" / "+S.students.length+"\n"+(ab.length?"Absent / leave:\n"+ab.map(s=>s.roll+". "+s.name+" – "+dailyInfo(s.roll,day).txt.toLowerCase()).join("\n"):"All students present.")+"\n\n– "+(k.teacher||"Class Teacher");
+    navigator.clipboard.writeText(t).then(()=>toast("Class summary copied – paste in the parents' group"),()=>{closeSheet();showText(t)})};
+  h.querySelector("#pmReset").onclick=()=>{PM.sent={};try{localStorage.removeItem(sentKey())}catch(e){}renderPM()};
+}
 function listPage(title,ym,body){const c=C(),k=S.classes.find(x=>x.id===S.cid)||{};
   return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)} - ${esc(classLabel(k))} - ${monthLabel(ym)}</title><style>
   @page{size:A4;margin:12mm}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}body{font-family:Arial,sans-serif;color:#000;font-size:11px}
