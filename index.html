@@ -409,7 +409,7 @@ function viewDash(v){
   v.querySelector("#shCsv").onclick=()=>downloadShortageList(S.month);
   v.querySelector("#repBtn").onclick=()=>{
     const per=S.lowScope==="month"?monthLabel(S.month):"Whole session";
-    const t=`To: ${c.principal||"The Principal"}, ${c.school}\nAttendance report – Class ${c.cls}${c.section?" - "+c.section:""} – ${monthLabel(S.month)}\n\nStudents: ${cm.N}\nWorking days: ${cm.W}\nClass average: ${pct(cm.avg)}\nFull-day absences: ${cm.full} | Half-day: ${cm.half} | Leave days: ${cm.ldays}\nFine due: Rs ${cm.fine} | Collected: Rs ${collected}\n\nBelow ${Math.round(c.minPct*100)}% (${per}): ${scopeRows.length}\n${scopeRows.map((r,i)=>`${i+1}. ${r.st.name} (Roll ${r.st.roll}) – ${pct(r.x.pct)}, short ${fmtS(daysShort(r.x.present,r.x.W,c.minPct))} days, needs ${daysNeeded(r.x.present,r.x.W,c.minPct)} days in a row`).join("\n")||"None"}\n\n— ${c.teacher}, Class Teacher`;
+    const t=`To: ${c.principal||"The Principal"}, ${c.school}\nAttendance report – Class ${c.cls}${c.section?" - "+c.section:""} – ${monthLabel(S.month)}\n\nStudents: ${cm.N}\nWorking days: ${cm.W}\nClass average: ${pct(cm.avg)}\nFull-day absences: ${cm.full} | Half-day: ${cm.half} | Leave days: ${cm.ldays}\nFine due: Rs ${cm.fine} | Collected: Rs ${collected}\n\nBelow ${Math.round(c.minPct*100)}% (${per}): ${scopeRows.length}\n${scopeRows.map((r,i)=>`${i+1}. ${r.st.name} (Roll ${r.st.roll}) – ${fmtS(r.x.present)}/${r.x.W} – ${pct(r.x.pct)}, short ${fmtS(daysShort(r.x.present,r.x.W,c.minPct))} days, needs ${daysNeeded(r.x.present,r.x.W,c.minPct)} days in a row`).join("\n")||"None"}\n\n— ${c.teacher}, Class Teacher`;
     copyText(t)};
   const mc=v.querySelector('#mchips [aria-pressed="true"]');if(mc)mc.scrollIntoView({inline:"center",block:"nearest"});
 }
