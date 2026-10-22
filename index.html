@@ -204,7 +204,7 @@ function lsGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
 function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
 function classLabel(k){return k?("Class "+(k.cls||"–")+(k.section?" - "+k.section:"")):""}
 const DEF = {
-  school: "St. James H.S. School", address: "", cls: "", section: "", teacher: "", principal: "", year: "",
+  school: "St. James H.S. School", address: "", cls: "", section: "", teacher: "", principal: "", principalPhone: "", year: "",
   start: "2026-04-01", end: "2027-03-31", countFrom: "2026-04-01", minPct: 0.75, sunOff: true,
   satOff: "None", fineA: 10, fineHD: 20, fineL: 0, holidays: []
 };
@@ -389,7 +389,8 @@ function viewDash(v){
     <div class="seg" style="width:200px"><button data-scope="month" aria-pressed="${S.lowScope==="month"}">Month</button><button data-scope="session" aria-pressed="${S.lowScope==="session"}">Session</button></div></div>
     ${scopeRows.length?`<div class="tablewrap"><table><thead><tr><th>Student</th><th>Days</th><th>%</th><th>Short</th><th>In a row</th></tr></thead><tbody>${scopeRows.map(r=>`<tr><td>${r.st.roll}. ${esc(r.st.name)}</td><td>${r.x.present.toFixed(1)}/${r.x.W}</td><td class="pct-low">${pct(r.x.pct)}</td><td>${fmtS(daysShort(r.x.present,r.x.W,c.minPct))}</td><td>${daysNeeded(r.x.present,r.x.W,c.minPct)}</td></tr>`).join("")}</tbody></table></div>
     <p class="small muted">“Short” = days missing from ${Math.round(c.minPct*100)}% so far. “In a row” = full days to attend from today, without a break, to reach ${Math.round(c.minPct*100)}%.</p>`:`<p class="muted">No student is below ${Math.round(c.minPct*100)}%.</p>`}
-    <div class="btns"><button class="btn sm" id="repBtn">Copy report for Principal</button></div></div>
+    <div class="btns"><button class="btn sm green" id="repWa">WhatsApp Principal</button><button class="btn sm" id="repSms">SMS Principal</button><button class="btn sm ghost" id="repBtn">Copy report</button></div>
+    ${waPhone(c.principalPhone)?"":`<p class="small muted">Add the Principal's phone in More → Settings to open their chat directly.</p>`}</div>
   <div class="card"><h3>Monthly report – ${monthLabel(S.month)}</h3><p class="small muted">Page 1: full register with daily AM/PM marks, totals and %. Page 2: fine collection and shortage-of-attendance list.</p>
     <div class="btns"><button class="btn green" id="mrPrint">Print monthly report</button><button class="btn ghost" id="mrCsv">Download for Excel</button></div></div>
   <div class="card"><h3>Messages to parents</h3><p class="small muted">Send each parent their child's daily or monthly attendance on WhatsApp or SMS. One tap per parent opens the message ready to send.</p>
@@ -408,10 +409,13 @@ function viewDash(v){
   v.querySelector("#fnCsv").onclick=()=>downloadFineList(S.month);
   v.querySelector("#shPrint").onclick=()=>printShortageList(S.month);
   v.querySelector("#shCsv").onclick=()=>downloadShortageList(S.month);
-  v.querySelector("#repBtn").onclick=()=>{
+  const repText=()=>{
     const per=S.lowScope==="month"?monthLabel(S.month):"Whole session";
     const t=`To: ${c.principal||"The Principal"}, ${c.school}\nAttendance report – Class ${c.cls}${c.section?" - "+c.section:""} – ${monthLabel(S.month)}\n\nStudents: ${cm.N}\nWorking days: ${cm.W}\nClass average: ${pct(cm.avg)}\nFull-day absences: ${cm.full} | Half-day: ${cm.half} | Leave days: ${cm.ldays}\nFine due: Rs ${cm.fine} | Collected: Rs ${collected}\n\nBelow ${Math.round(c.minPct*100)}% (${per}): ${scopeRows.length}\n${scopeRows.map((r,i)=>`${i+1}. ${r.st.name} (Roll ${r.st.roll}) – ${fmtS(r.x.present)}/${r.x.W} – ${pct(r.x.pct)}, short ${fmtS(daysShort(r.x.present,r.x.W,c.minPct))} days, needs ${daysNeeded(r.x.present,r.x.W,c.minPct)} days in a row`).join("\n")||"None"}\n\n— ${c.teacher}, Class Teacher`;
-    copyText(t)};
+    return t};
+  v.querySelector("#repBtn").onclick=()=>copyText(repText());
+  v.querySelector("#repWa").onclick=()=>{const ph=waPhone(c.principalPhone);window.open("https://wa.me/"+ph+"?text="+encodeURIComponent(repText()),"_blank");if(!ph)toast("Choose the Principal's chat in WhatsApp")};
+  v.querySelector("#repSms").onclick=()=>{const ph=waPhone(c.principalPhone);location.href="sms:"+(ph?"+"+ph:"")+"?body="+encodeURIComponent(repText())};
   const mc=v.querySelector('#mchips [aria-pressed="true"]');if(mc)mc.scrollIntoView({inline:"center",block:"nearest"});
 }
 
@@ -741,6 +745,7 @@ function viewMore(v){
     </div>
     <p class="small muted" style="margin:10px 0 0">These settings apply to every class. Class teacher is set per class above.</p>
     <label class="field" style="margin-top:10px"><span class="label">Principal</span><input id="sP" value="${esc(c.principal)}"></label>
+    <label class="field" style="margin-top:10px"><span class="label">Principal's phone (WhatsApp / SMS)</span><input id="sPP" type="tel" inputmode="tel" placeholder="10-digit mobile number" value="${esc(c.principalPhone||"")}"></label>
     ${S.canWrite?`<div class="btns" style="margin-top:12px"><button class="btn green" id="sSave">Save settings</button></div>`:""}</div>
   <div class="card"><h3>Holidays &amp; vacations</h3>
     <div style="margin-top:8px">${(c.holidays||[]).slice().sort((a,b)=>a.from<b.from?-1:1).map((h,i)=>`<div class="hol"><span><b>${esc(h.name)}</b><br><span class="small muted">${esc(fmtDate(h.from))}${h.to&&h.to!==h.from?" – "+esc(fmtDate(h.to)):""}</span></span>${S.canWrite?`<button class="chip" data-delhol="${esc(h.from)}|${esc(h.name)}">Remove</button>`:""}</div>`).join("")||`<p class="muted">No holidays added.</p>`}</div>
@@ -758,7 +763,7 @@ function viewMore(v){
     saveFile("SJS_Attendance_"+(C().cls||"")+(C().section?"-"+C().section:"")+"_"+todayISO()+".csv",out.join("\n"),"text/csv");toast("CSV downloaded")};
   const ss=v.querySelector("#sSave");if(ss)ss.onclick=()=>saveCfg({fineA:+v.querySelector("#sA").value||0,fineHD:+v.querySelector("#sHD").value||0,fineL:+v.querySelector("#sL").value||0,
     minPct:Math.min(1,Math.max(0.01,(+v.querySelector("#sMin").value||75)/100)),satOff:v.querySelector("#sSat").value,sunOff:v.querySelector("#sSun").value==="1",
-    principal:v.querySelector("#sP").value.trim()},"Settings saved");
+    principal:v.querySelector("#sP").value.trim(),principalPhone:v.querySelector("#sPP").value.trim()},"Settings saved");
   const qk=v.querySelector("#sQuick");if(qk)qk.onchange=()=>{const y=+qk.value;if(!y)return;
     v.querySelector("#sStart").value=y+"-04-01";v.querySelector("#sEnd").value=(y+1)+"-03-31";v.querySelector("#sCount").value=y+"-04-01";v.querySelector("#sYr").value=y+"-"+String(y+1).slice(2)};
   const sst=v.querySelector("#sStart");if(sst)sst.onchange=()=>{const cf=v.querySelector("#sCount");if(!cf.value||cf.value<sst.value)cf.value=sst.value};
