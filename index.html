@@ -125,6 +125,24 @@ h3{font-family:var(--f-display);font-weight:600;font-size:16px;margin:0}
 .k-bad b{color:var(--absent)} .k-good b{color:var(--present)} .k-gold b{color:var(--half)}
 .monthchips{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
 .monthchips .chip{flex:none}
+.chart{display:grid;grid-template-columns:30px 1fr;column-gap:6px;margin-top:10px}
+.ch-y{position:relative;height:150px;font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums}
+.ch-y span{position:absolute;right:0;transform:translateY(50%)}
+.ch-plot{position:relative;height:150px;display:grid;gap:2px;align-items:end;border-bottom:1px solid var(--line)}
+.ch-grid{position:absolute;left:0;right:0;border-top:1px solid var(--line);pointer-events:none}
+.ch-target{position:absolute;left:0;right:0;border-top:2px dashed var(--half);pointer-events:none;z-index:2}
+.ch-target em{position:absolute;right:0;top:-17px;font-size:10px;font-style:normal;font-weight:700;color:var(--half);background:var(--surface);padding:0 3px}
+.ch-plot button{height:100%;display:flex;align-items:flex-end;padding:0;border:0;background:none;cursor:pointer;position:relative;z-index:1;min-width:0}
+.ch-plot button i{display:block;width:100%;border-radius:3px 3px 0 0;background:var(--present)}
+.ch-plot button.low i{background:var(--absent)}
+.ch-plot button.off i{background:var(--sunk);border-radius:2px}
+.ch-plot button.sel i{outline:2px solid var(--ink);outline-offset:1px}
+.ch-plot button.today::after{content:"";position:absolute;left:50%;bottom:-7px;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:var(--navy)}
+.ch-x{grid-column:2;display:grid;gap:2px;font-size:10px;color:var(--muted);margin-top:8px;font-variant-numeric:tabular-nums}
+.ch-x span{text-align:center;overflow:visible;white-space:nowrap}
+.ch-info{margin-top:12px;padding:10px 12px;border-radius:10px;background:var(--sunk);font-size:14px}
+.ch-legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:10px;font-size:12px;color:var(--muted)}
+.ch-legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px;background:var(--c)}
 .bars{display:flex;align-items:flex-end;gap:3px;height:110px;padding-top:8px}
 .bars i{flex:1;background:var(--navy);border-radius:3px 3px 0 0;min-height:2px;position:relative}
 .bars i.off{background:var(--sunk)}
@@ -365,11 +383,17 @@ function viewDash(v){
     <div class="grid2" style="margin-top:10px">${["AM","PM"].map(ses=>{const ab=absList(ses);return `<div><div class="label">${ses} ${ta["taken"+ses]?"✓ saved":"· not taken"}</div><div style="font-weight:700;margin-top:4px">${ta["taken"+ses]?(S.students.length-Object.keys(ta[ses]||{}).length)+" present, "+ab.length+" absent":"–"}</div><div class="small muted">${ab.map(r=>esc(nameOf(r))).join(", ")}</div></div>`}).join("")}</div></div>`
     :`<div class="banner off">Today is ${tst==="HOL"?"a holiday ("+esc(holidayName(t))+")":tst==="OFF"?"a weekly off":"not a school day"}.</div>`;
   // daily bars
-  const days=daysIn(S.month);let bars="";
+  const days=daysIn(S.month),tdy=todayISO(),N=S.students.length,mp=c.minPct;let bars="",xl="";const dinfo=[];let best=null,worst=null;
   for(let d=1;d<=days;d++){const s=S.month+"-"+pad(d);const st=status(s);
-    if(st!=="W"){bars+=`<i class="off" style="height:4%" title="${d}"></i>`;continue}
-    let tot=0;for(const x of S.students){const am=codeOf(s,"AM",x.roll),pm=codeOf(s,"PM",x.roll);tot+=(am==="P")*0.5+(pm==="P")*0.5}
-    const p=S.students.length?tot/S.students.length:0;bars+=`<i class="${p<c.minPct?"low":""}" style="height:${Math.max(4,p*100)}%" title="${d}: ${pct(p)}"></i>`}
+    const dl=new Date(s+"T00:00:00").toLocaleDateString("en-IN",{weekday:"short",day:"numeric",month:"short"});
+    xl+=`<span>${d===1||d%5===0?d:""}</span>`;
+    if(st!=="W"){const why=st==="HOL"?"Holiday – "+holidayName(s):st==="OFF"?"Weekly off":st==="FUT"?"Upcoming day":"Not counted";
+      dinfo.push(dl+": "+why);bars+=`<button class="off${s===tdy?" today":""}" data-d="${d-1}" aria-label="${esc(dl)} ${esc(why)}"><i style="height:3px"></i></button>`;continue}
+    let tot=0,ab=0,hf=0,lv=0;for(const x of S.students){const am=codeOf(s,"AM",x.roll),pm=codeOf(s,"PM",x.roll);tot+=(am==="P")*0.5+(pm==="P")*0.5;
+      const pa=(am==="P")+(pm==="P");if(pa===1)hf++;else if(pa===0){if(am==="L"||pm==="L")lv++;else ab++}}
+    const p=N?tot/N:0;if(!best||p>best.p)best={p,dl};if(!worst||p<worst.p)worst={p,dl};
+    dinfo.push(`<b>${dl}</b>: ${pct(p)} present (${fmtS(tot)} of ${N})${ab?" • Absent "+ab:""}${hf?" • Half day "+hf:""}${lv?" • Leave "+lv:""}`);
+    bars+=`<button class="${p<mp?"low":""}${s===tdy?" today":""}" data-d="${d-1}" aria-label="${esc(dl)} ${pct(p)}"><i style="height:${Math.max(2,p*100)}%"></i></button>`}
   const scopeRows=S.lowScope==="month"?cm.below.map(r=>({st:r.st,x:r.x})):S.students.map(st=>({st,x:sessionStats(st.roll)})).filter(r=>r.x.pct!=null&&r.x.pct<c.minPct);
   scopeRows.sort((a,b)=>a.x.pct-b.x.pct);
   const collected=cm.rows.reduce((a,r)=>a+(paidOn(S.month,r.st.roll)?r.x.fine:0),0);
@@ -384,7 +408,12 @@ function viewDash(v){
     <div class="kpi k-gold"><div class="label">Fine due</div><b>Rs ${cm.fine}</b><div class="small muted">Collected Rs ${collected}</div></div>
   </div>
   <div class="card"><div class="row between"><h3>Daily attendance</h3><span class="small muted">${monthLabel(S.month)}</span></div>
-    <div class="bars" role="img" aria-label="Daily attendance percentage">${bars}</div><div class="barlbl"><span>1</span><span>${Math.ceil(days/2)}</span><span>${days}</span></div></div>
+    <p class="small muted" style="margin:4px 0 0">% of students present each school day</p>
+    <div class="chart"><div class="ch-y">${[0,50,100].map(y=>`<span style="bottom:${y}%">${y}%</span>`).join("")}</div>
+      <div class="ch-plot" style="grid-template-columns:repeat(${days},1fr)">${[50,100].map(y=>`<div class="ch-grid" style="bottom:${y}%"></div>`).join("")}<div class="ch-target" style="bottom:${mp*100}%"><em>Target ${Math.round(mp*100)}%</em></div>${bars}</div>
+      <div class="ch-x" style="grid-template-columns:repeat(${days},1fr)">${xl}</div></div>
+    <div class="ch-legend"><span style="--c:var(--present)">${Math.round(mp*100)}% or more</span><span style="--c:var(--absent)">Below ${Math.round(mp*100)}%</span><span style="--c:var(--sunk)">Holiday / off</span></div>
+    <div class="ch-info" id="chInfo">${best?`Best day: <b>${pct(best.p)}</b> (${best.dl}) • Lowest: <b>${pct(worst.p)}</b> (${worst.dl})<br><span class="small muted">Tap a bar to see that day.</span>`:"No school days in this month yet."}</div></div>
   <div class="card"><div class="row between" style="flex-wrap:wrap;gap:8px"><h3>Below ${Math.round(c.minPct*100)}%</h3>
     <div class="seg" style="width:200px"><button data-scope="month" aria-pressed="${S.lowScope==="month"}">Month</button><button data-scope="session" aria-pressed="${S.lowScope==="session"}">Session</button></div></div>
     ${scopeRows.length?`<div class="tablewrap"><table><thead><tr><th>Student</th><th>Days</th><th>%</th><th>Short</th><th>In a row</th></tr></thead><tbody>${scopeRows.map(r=>`<tr><td>${r.st.roll}. ${esc(r.st.name)}</td><td>${r.x.present.toFixed(1)}/${r.x.W}</td><td class="pct-low">${pct(r.x.pct)}</td><td>${fmtS(daysShort(r.x.present,r.x.W,c.minPct))}</td><td>${daysNeeded(r.x.present,r.x.W,c.minPct)}</td></tr>`).join("")}</tbody></table></div>
@@ -401,6 +430,7 @@ function viewDash(v){
     <div class="btns"><button class="btn" id="shPrint">Print shortage list</button><button class="btn ghost" id="shCsv">Download for Excel</button></div></div>`;
   v.querySelectorAll("#mchips [data-m]").forEach(b=>b.onclick=()=>{S.month=b.dataset.m;render()});
   v.querySelectorAll("[data-scope]").forEach(b=>b.onclick=()=>{S.lowScope=b.dataset.scope;render()});
+  v.querySelectorAll(".ch-plot button").forEach(b=>b.onclick=()=>{v.querySelectorAll(".ch-plot button.sel").forEach(x=>x.classList.remove("sel"));b.classList.add("sel");v.querySelector("#chInfo").innerHTML=dinfo[+b.dataset.d]});
   v.querySelector("#mrPrint").onclick=()=>printMonthlyReport(S.month);
   v.querySelector("#mrCsv").onclick=()=>downloadMonthlyReport(S.month);
   v.querySelector("#msgDaily").onclick=()=>openParentMsgs("daily");
