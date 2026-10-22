@@ -657,6 +657,16 @@ function viewMore(v){
     <div class="list classlist" style="margin-top:10px">${S.classes.map(x=>`<div class="stu" style="cursor:default" ${x.id===S.cid?'aria-current="true"':""}><span class="roll">${esc(x.cls)}</span><span><div class="nm">${esc(classLabel(x))}</div><div class="meta">${esc(x.teacher||"No class teacher set")}</div></span><span class="row" style="gap:6px">${x.id===S.cid?`<span class="small muted">Open</span>`:`<button class="chip" data-switch="${esc(x.id)}">Open</button>`}${S.canWrite?`<button class="chip" data-editcls="${esc(x.id)}">Edit</button>`:""}</span></div>`).join("")||`<p class="muted">No classes yet.</p>`}</div></div>
   ${k?`<div class="card"><h3>Send to Excel</h3>`:`<div hidden>`}<p class="small muted">Copies one month of AM/PM marks. In your Excel register (two-times version), open that month's sheet, click cell <b>C9</b> and paste.</p>
     ${monthChips(S.month,"xchips")}<div class="btns" style="margin-top:8px"><button class="btn" id="xCopy">Copy ${monthLabel(S.month)} for Excel</button><button class="btn ghost" id="xCsv">Download CSV</button></div></div>
+  <div class="card"><h3>Academic session</h3>
+    <div class="grid2" style="margin-top:10px">
+      <label class="field"><span class="label">Academic session</span><input id="sYr" placeholder="e.g. 2026-27" value="${esc(c.year||sessionName(c.start,c.end))}"></label>
+      <label class="field"><span class="label">Quick set</span><select id="sQuick"><option value="">Choose a session…</option>${[-1,0,1,2].map(o=>{const y=+c.start.slice(0,4)+o;return `<option value="${y}">${y}-${String(y+1).slice(2)} (1 Apr ${y} – 31 Mar ${y+1})</option>`}).join("")}</select></label>
+      <label class="field"><span class="label">Session start date</span><input id="sStart" type="date" value="${esc(c.start)}"></label>
+      <label class="field"><span class="label">Session end date</span><input id="sEnd" type="date" value="${esc(c.end)}"></label>
+      <label class="field"><span class="label">Count attendance from</span><input id="sCount" type="date" value="${esc(c.countFrom||c.start)}"></label>
+    </div>
+    <p class="small muted" style="margin:10px 0 0">“Count attendance from” is the first day used for working days and %. Keep it the same as the start date unless you began marking later.</p>
+    ${S.canWrite?`<div class="btns" style="margin-top:12px"><button class="btn green" id="sesSave">Save session</button></div>`:""}</div>
   <div class="card"><h3>Settings</h3>
     <div class="grid2" style="margin-top:10px">
       <label class="field"><span class="label">Full-day fine (Rs)</span><input id="sA" type="number" min="0" value="${c.fineA}"></label>
@@ -674,7 +684,7 @@ function viewMore(v){
     ${S.canWrite?`<div class="grid2" style="margin-top:10px"><label class="field"><span class="label">From</span><input id="hF" type="date"></label><label class="field"><span class="label">To (optional)</span><input id="hT" type="date"></label></div>
     <label class="field" style="margin-top:8px"><span class="label">Name</span><input id="hN" placeholder="e.g. Durga Puja vacation"></label>
     <div class="btns" style="margin-top:10px"><button class="btn" id="hAdd">Add holiday</button></div>`:""}</div>
-  <p class="small muted">Session ${esc(c.start)} to ${esc(c.end)} • Counting from ${esc(c.countFrom)}</p>`;
+  <p class="small muted">Session ${esc(c.year||sessionName(c.start,c.end))}: ${esc(fmtDate(c.start))} to ${esc(fmtDate(c.end))} • Counting from ${esc(fmtDate(c.countFrom||c.start))}</p>`;
   v.querySelectorAll("#xchips [data-m]").forEach(b=>b.onclick=()=>{S.month=b.dataset.m;render()});
   v.querySelector("#xCopy").onclick=()=>{
     if(!k){toast("Add a class first");return}
@@ -686,6 +696,18 @@ function viewMore(v){
   const ss=v.querySelector("#sSave");if(ss)ss.onclick=()=>saveCfg({fineA:+v.querySelector("#sA").value||0,fineHD:+v.querySelector("#sHD").value||0,fineL:+v.querySelector("#sL").value||0,
     minPct:Math.min(1,Math.max(0.01,(+v.querySelector("#sMin").value||75)/100)),satOff:v.querySelector("#sSat").value,sunOff:v.querySelector("#sSun").value==="1",
     principal:v.querySelector("#sP").value.trim()},"Settings saved");
+  const qk=v.querySelector("#sQuick");if(qk)qk.onchange=()=>{const y=+qk.value;if(!y)return;
+    v.querySelector("#sStart").value=y+"-04-01";v.querySelector("#sEnd").value=(y+1)+"-03-31";v.querySelector("#sCount").value=y+"-04-01";v.querySelector("#sYr").value=y+"-"+String(y+1).slice(2)};
+  const sst=v.querySelector("#sStart");if(sst)sst.onchange=()=>{const cf=v.querySelector("#sCount");if(!cf.value||cf.value<sst.value)cf.value=sst.value};
+  const ses=v.querySelector("#sesSave");if(ses)ses.onclick=()=>{
+    const st=v.querySelector("#sStart").value,en=v.querySelector("#sEnd").value;let cf=v.querySelector("#sCount").value||st;
+    if(!st||!en){toast("Enter both start and end dates");return}
+    if(en<=st){toast("End date must be after the start date");return}
+    const days=(toD(en)-toD(st))/864e5;if(days>366){toast("A session can be at most one year");return}
+    if(cf<st||cf>en)cf=st;
+    const yr=v.querySelector("#sYr").value.trim()||sessionName(st,en);
+    saveCfg({start:st,end:en,countFrom:cf,year:yr},"Session saved: "+yr).then(()=>{if(!months().includes(S.month)){const t=todayISO().slice(0,7);S.month=months().includes(t)?t:months()[0];render()}});
+  };
   const ac=v.querySelector("#addCls");if(ac)ac.onclick=()=>editClass(null);
   v.querySelectorAll("[data-switch]").forEach(b=>b.onclick=()=>switchClass(b.dataset.switch));
   wireDataCard(v);
@@ -694,6 +716,7 @@ function viewMore(v){
     if(!f||!n){toast("Enter a date and a name");return}const hs=(c.holidays||[]).slice();hs.push({name:n,from:f,to:t&&t>=f?t:""});saveCfg({holidays:hs},"Holiday added")};
   v.querySelectorAll("[data-delhol]").forEach(b=>b.onclick=()=>{const [f,n]=b.dataset.delhol.split("|");saveCfg({holidays:(c.holidays||[]).filter(h=>!(h.from===f&&h.name===n))},"Holiday removed")});
 }
+function sessionName(st,en){if(!st)return "";const a=st.slice(0,4),b=(en||"").slice(0,4);return b&&b!==a?a+"-"+b.slice(2):a}
 async function saveCfg(patch,msg){
   const body=Object.assign({},S.cfg||DEF,patch);
   try{await S.db.doc("cfg/main").set(body);S.cfg=body;render();toast(msg)}catch(e){toast("Couldn't save settings")}
