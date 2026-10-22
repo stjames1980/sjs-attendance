@@ -260,6 +260,7 @@ function classMonth(ym){
 }
 function daysShort(present,W,m){if(W===0||present/W>=m)return 0;return Math.max(0,Math.ceil(m*W-1e-9)-present)}
 const fmtS=v=>v%1?v.toFixed(1):v;
+function lowPart(r,m){return r.m.pct!=null&&r.m.pct<m?r.m:r.s}
 function daysNeeded(present,W,m){if(W===0||present/W>=m||m>=1)return 0;return Math.ceil((m*W-present)/(1-m))}
 function paidOn(ym,roll){const p=S.pay[ym];return p?p[roll]:undefined}
 function toast(msg){const t=document.getElementById("toast");t.textContent=msg;t.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>t.hidden=true,2400)}
@@ -524,8 +525,8 @@ function printFineList(ym){const c=C(),cm=classMonth(ym),rows=fineRows(ym);
   printHTML(listPage("Fine Collection List",ym,body))}
 function printShortageList(ym){const c=C(),rows=shortageList(ym),fx=v=>v%1?v.toFixed(1):v,m=Math.round(c.minPct*100);
   const body=`<div class="small">Students below ${m}% in ${monthLabel(ym)} or for the session so far.</div>`+(rows.length?`<table><thead><tr><th>Sl</th><th>Roll</th><th>Student Name</th><th>Month days</th><th>Month %</th><th>Session days</th><th>Session %</th><th>Short</th><th>In a row</th><th>Parent</th><th>Phone</th></tr></thead><tbody>
-  ${rows.map((r,i)=>`<tr><td class="c">${i+1}</td><td class="c">${r.st.roll}</td><td>${esc(r.st.name)}</td><td class="c">${fx(r.m.present)}/${r.m.W}</td><td class="c ${r.m.pct!=null&&r.m.pct<c.minPct?"low":""}">${pct(r.m.pct)}</td><td class="c">${fx(r.s.present)}/${r.s.W}</td><td class="c ${r.s.pct!=null&&r.s.pct<c.minPct?"low":""}">${pct(r.s.pct)}</td><td class="c">${fmtS(daysShort(r.s.present,r.s.W,c.minPct))||"–"}</td><td class="c">${daysNeeded(r.s.present,r.s.W,c.minPct)||"–"}</td><td>${esc(r.st.parent)}</td><td>${esc(r.st.phone)}</td></tr>`).join("")}</tbody></table>
-  <div class="small">“Short” = days missing from ${m}% (session). “In a row” = full days to attend from today, without a break, to reach ${m}%. Total: ${rows.length} students.</div>`:`<p>No student is below ${m}%.</p>`);
+  ${rows.map((r,i)=>`<tr><td class="c">${i+1}</td><td class="c">${r.st.roll}</td><td>${esc(r.st.name)}</td><td class="c">${fx(r.m.present)}/${r.m.W}</td><td class="c ${r.m.pct!=null&&r.m.pct<c.minPct?"low":""}">${pct(r.m.pct)}</td><td class="c">${fx(r.s.present)}/${r.s.W}</td><td class="c ${r.s.pct!=null&&r.s.pct<c.minPct?"low":""}">${pct(r.s.pct)}</td><td class="c">${fmtS(daysShort(lowPart(r,c.minPct).present,lowPart(r,c.minPct).W,c.minPct))||"–"}</td><td class="c">${daysNeeded(lowPart(r,c.minPct).present,lowPart(r,c.minPct).W,c.minPct)||"–"}</td><td>${esc(r.st.parent)}</td><td>${esc(r.st.phone)}</td></tr>`).join("")}</tbody></table>
+  <div class="small">“Short” = days missing from ${m}% (for the month if the month is below ${m}%, otherwise the session). “In a row” = full days to attend from today, without a break, to reach ${m}%. Total: ${rows.length} students.</div>`:`<p>No student is below ${m}%.</p>`);
   printHTML(listPage("Shortage of Attendance (below "+m+"%)",ym,body))}
 function csvHead(title,ym){const c=C(),k=S.classes.find(x=>x.id===S.cid)||{};const q=v=>'"'+String(v??"").replace(/"/g,'""')+'"';return [q(c.school||"St. James H.S. School"),q(title+" - "+monthLabel(ym)),q(classLabel(k)+(k.teacher?" - Class teacher: "+k.teacher:"")),""]}
 function csvName(t,ym){const k=S.classes.find(x=>x.id===S.cid)||{};return t+"_"+(k.cls||"")+(k.section?"-"+k.section:"")+"_"+ym+".csv"}
@@ -537,7 +538,7 @@ function downloadFineList(ym){const q=v=>'"'+String(v??"").replace(/"/g,'""')+'"
 function downloadShortageList(ym){const c=C(),q=v=>'"'+String(v??"").replace(/"/g,'""')+'"';
   const out=csvHead("Shortage of Attendance (below "+Math.round(c.minPct*100)+"%)",ym);
   out.push(["Sl","Roll","Student Name","Month present","Month working","Month %","Session present","Session working","Session %","Short","In a row","Parent","Phone"].map(q).join(","));
-  shortageList(ym).forEach((r,i)=>out.push([i+1,r.st.roll,q(r.st.name),r.m.present,r.m.W,r.m.pct==null?"":(r.m.pct*100).toFixed(1),r.s.present,r.s.W,r.s.pct==null?"":(r.s.pct*100).toFixed(1),daysShort(r.s.present,r.s.W,c.minPct),daysNeeded(r.s.present,r.s.W,c.minPct),q(r.st.parent),q(r.st.phone?"'"+r.st.phone:"")].join(",")));
+  shortageList(ym).forEach((r,i)=>out.push([i+1,r.st.roll,q(r.st.name),r.m.present,r.m.W,r.m.pct==null?"":(r.m.pct*100).toFixed(1),r.s.present,r.s.W,r.s.pct==null?"":(r.s.pct*100).toFixed(1),daysShort(lowPart(r,c.minPct).present,lowPart(r,c.minPct).W,c.minPct),daysNeeded(lowPart(r,c.minPct).present,lowPart(r,c.minPct).W,c.minPct),q(r.st.parent),q(r.st.phone?"'"+r.st.phone:"")].join(",")));
   saveFile(csvName("Shortage_List",ym),"﻿"+out.join("\n"),"text/csv");toast("Shortage list downloaded")}
 function printMonthlyReport(ym){
   const c=C(),k=S.classes.find(x=>x.id===S.cid)||{},cm=classMonth(ym),n=daysIn(ym);
@@ -587,8 +588,8 @@ function printMonthlyReport(ym){
   <div><div class="ttl">SHORTAGE OF ATTENDANCE (BELOW ${Math.round(c.minPct*100)}%)</div>
   <div class="small">Students below ${Math.round(c.minPct*100)}% this month or for the session so far</div>
   ${short.length?`<table class="lst"><thead><tr><th>Sl</th><th>Roll</th><th>Student Name</th><th>${monthLabel(ym)}</th><th>Month %</th><th>Session</th><th>Session %</th><th>Short</th><th>In a row</th><th>Parent / Phone</th></tr></thead><tbody>
-  ${short.map((r,i)=>`<tr><td class="c">${i+1}</td><td class="c">${r.st.roll}</td><td>${esc(r.st.name)}</td><td class="c">${fx(r.m.present)}/${r.m.W}</td><td class="c ${r.m.pct!=null&&r.m.pct<c.minPct?"low":""}">${pct(r.m.pct)}</td><td class="c">${fx(r.s.present)}/${r.s.W}</td><td class="c ${r.s.pct!=null&&r.s.pct<c.minPct?"low":""}">${pct(r.s.pct)}</td><td class="c">${fmtS(daysShort(r.s.present,r.s.W,c.minPct))||"–"}</td><td class="c">${daysNeeded(r.s.present,r.s.W,c.minPct)||"–"}</td><td>${esc([r.st.parent,r.st.phone].filter(Boolean).join(", "))}</td></tr>`).join("")}</tbody></table>
-  <div class="small">“Short” = days missing from ${Math.round(c.minPct*100)}% (session). “In a row” = full days to attend from today, without a break, to reach ${Math.round(c.minPct*100)}%.</div>`:`<p>No student is below ${Math.round(c.minPct*100)}%.</p>`}</div>
+  ${short.map((r,i)=>`<tr><td class="c">${i+1}</td><td class="c">${r.st.roll}</td><td>${esc(r.st.name)}</td><td class="c">${fx(r.m.present)}/${r.m.W}</td><td class="c ${r.m.pct!=null&&r.m.pct<c.minPct?"low":""}">${pct(r.m.pct)}</td><td class="c">${fx(r.s.present)}/${r.s.W}</td><td class="c ${r.s.pct!=null&&r.s.pct<c.minPct?"low":""}">${pct(r.s.pct)}</td><td class="c">${fmtS(daysShort(lowPart(r,c.minPct).present,lowPart(r,c.minPct).W,c.minPct))||"–"}</td><td class="c">${daysNeeded(lowPart(r,c.minPct).present,lowPart(r,c.minPct).W,c.minPct)||"–"}</td><td>${esc([r.st.parent,r.st.phone].filter(Boolean).join(", "))}</td></tr>`).join("")}</tbody></table>
+  <div class="small">“Short” = days missing from ${Math.round(c.minPct*100)}% (for the month if the month is below ${Math.round(c.minPct*100)}%, otherwise the session). “In a row” = full days to attend from today, without a break, to reach ${Math.round(c.minPct*100)}%.</div>`:`<p>No student is below ${Math.round(c.minPct*100)}%.</p>`}</div>
   </div>
   <div class="sign"><div>Class Teacher</div><div>Checked by</div><div>Principal${c.principal?"<br>"+esc(c.principal):""}</div></div>
   </body></html>`;
@@ -605,7 +606,7 @@ function downloadMonthlyReport(ym){
   cm.rows.filter(r=>r.x.fine>0).sort((a,b)=>a.st.roll-b.st.roll).forEach((r,i)=>{const pd=paidOn(ym,r.st.roll);out.push([i+1,r.st.roll,q(r.st.name),r.x.full,r.x.half,r.x.ldays,r.x.fine,q(pd?pd.split("-").reverse().join("-"):""),q(pd?"Paid":"Pending")].join(","))});
   out.push(["","","Total","","","",cm.fine,q("Collected Rs "+coll),q("Pending Rs "+(cm.fine-coll))].join(","));
   out.push("","",q("SHORTAGE OF ATTENDANCE (below "+Math.round(c.minPct*100)+"%)"),["Sl","Roll","Student Name","Month present","Month working","Month %","Session present","Session working","Session %","Short","In a row","Parent","Phone"].map(q).join(","));
-  shortageList(ym).forEach((r,i)=>out.push([i+1,r.st.roll,q(r.st.name),r.m.present,r.m.W,r.m.pct==null?"":(r.m.pct*100).toFixed(1),r.s.present,r.s.W,r.s.pct==null?"":(r.s.pct*100).toFixed(1),daysShort(r.s.present,r.s.W,c.minPct),daysNeeded(r.s.present,r.s.W,c.minPct),q(r.st.parent),q(r.st.phone?"'"+r.st.phone:"")].join(",")));
+  shortageList(ym).forEach((r,i)=>out.push([i+1,r.st.roll,q(r.st.name),r.m.present,r.m.W,r.m.pct==null?"":(r.m.pct*100).toFixed(1),r.s.present,r.s.W,r.s.pct==null?"":(r.s.pct*100).toFixed(1),daysShort(lowPart(r,c.minPct).present,lowPart(r,c.minPct).W,c.minPct),daysNeeded(lowPart(r,c.minPct).present,lowPart(r,c.minPct).W,c.minPct),q(r.st.parent),q(r.st.phone?"'"+r.st.phone:"")].join(",")));
   saveFile("Monthly_Report_"+(k.cls||"")+(k.section?"-"+k.section:"")+"_"+ym+".csv","﻿"+out.join("\n"),"text/csv");toast("Monthly report downloaded");
 }
 function printStudentList(){
