@@ -258,6 +258,8 @@ function classMonth(ym){
     full:rows.reduce((a,r)=>a+r.x.full,0),half:rows.reduce((a,r)=>a+r.x.half,0),ldays:rows.reduce((a,r)=>a+r.x.ldays,0),
     fine:rows.reduce((a,r)=>a+r.x.fine,0),below:rows.filter(r=>r.x.pct!=null&&r.x.pct<C().minPct),perfect:rows.filter(r=>r.x.pct===1).length};
 }
+function daysShort(present,W,m){if(W===0||present/W>=m)return 0;return Math.max(0,Math.ceil(m*W-1e-9)-present)}
+const fmtS=v=>v%1?v.toFixed(1):v;
 function daysNeeded(present,W,m){if(W===0||present/W>=m||m>=1)return 0;return Math.ceil((m*W-present)/(1-m))}
 function paidOn(ym,roll){const p=S.pay[ym];return p?p[roll]:undefined}
 function toast(msg){const t=document.getElementById("toast");t.textContent=msg;t.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>t.hidden=true,2400)}
@@ -384,8 +386,8 @@ function viewDash(v){
     <div class="bars" role="img" aria-label="Daily attendance percentage">${bars}</div><div class="barlbl"><span>1</span><span>${Math.ceil(days/2)}</span><span>${days}</span></div></div>
   <div class="card"><div class="row between" style="flex-wrap:wrap;gap:8px"><h3>Below ${Math.round(c.minPct*100)}%</h3>
     <div class="seg" style="width:200px"><button data-scope="month" aria-pressed="${S.lowScope==="month"}">Month</button><button data-scope="session" aria-pressed="${S.lowScope==="session"}">Session</button></div></div>
-    ${scopeRows.length?`<div class="tablewrap"><table><thead><tr><th>Student</th><th>Days</th><th>%</th><th>Need</th></tr></thead><tbody>${scopeRows.map(r=>`<tr><td>${r.st.roll}. ${esc(r.st.name)}</td><td>${r.x.present.toFixed(1)}/${r.x.W}</td><td class="pct-low">${pct(r.x.pct)}</td><td>${daysNeeded(r.x.present,r.x.W,c.minPct)}</td></tr>`).join("")}</tbody></table></div>
-    <p class="small muted">“Need” = days of full attendance needed to reach ${Math.round(c.minPct*100)}%.</p>`:`<p class="muted">No student is below ${Math.round(c.minPct*100)}%.</p>`}
+    ${scopeRows.length?`<div class="tablewrap"><table><thead><tr><th>Student</th><th>Days</th><th>%</th><th>Short</th><th>In a row</th></tr></thead><tbody>${scopeRows.map(r=>`<tr><td>${r.st.roll}. ${esc(r.st.name)}</td><td>${r.x.present.toFixed(1)}/${r.x.W}</td><td class="pct-low">${pct(r.x.pct)}</td><td>${fmtS(daysShort(r.x.present,r.x.W,c.minPct))}</td><td>${daysNeeded(r.x.present,r.x.W,c.minPct)}</td></tr>`).join("")}</tbody></table></div>
+    <p class="small muted">“Short” = days missing from ${Math.round(c.minPct*100)}% so far. “In a row” = full days to attend from today, without a break, to reach ${Math.round(c.minPct*100)}%.</p>`:`<p class="muted">No student is below ${Math.round(c.minPct*100)}%.</p>`}
     <div class="btns"><button class="btn sm" id="repBtn">Copy report for Principal</button></div></div>
   <div class="card"><h3>Monthly report – ${monthLabel(S.month)}</h3><p class="small muted">Page 1: full register with daily AM/PM marks, totals and %. Page 2: fine collection and shortage-of-attendance list.</p>
     <div class="btns"><button class="btn green" id="mrPrint">Print monthly report</button><button class="btn ghost" id="mrCsv">Download for Excel</button></div></div>
@@ -407,7 +409,7 @@ function viewDash(v){
   v.querySelector("#shCsv").onclick=()=>downloadShortageList(S.month);
   v.querySelector("#repBtn").onclick=()=>{
     const per=S.lowScope==="month"?monthLabel(S.month):"Whole session";
-    const t=`To: ${c.principal||"The Principal"}, ${c.school}\nAttendance report – Class ${c.cls}${c.section?" - "+c.section:""} – ${monthLabel(S.month)}\n\nStudents: ${cm.N}\nWorking days: ${cm.W}\nClass average: ${pct(cm.avg)}\nFull-day absences: ${cm.full} | Half-day: ${cm.half} | Leave days: ${cm.ldays}\nFine due: Rs ${cm.fine} | Collected: Rs ${collected}\n\nBelow ${Math.round(c.minPct*100)}% (${per}): ${scopeRows.length}\n${scopeRows.map((r,i)=>`${i+1}. ${r.st.name} (Roll ${r.st.roll}) – ${pct(r.x.pct)}, needs ${daysNeeded(r.x.present,r.x.W,c.minPct)} days`).join("\n")||"None"}\n\n— ${c.teacher}, Class Teacher`;
+    const t=`To: ${c.principal||"The Principal"}, ${c.school}\nAttendance report – Class ${c.cls}${c.section?" - "+c.section:""} – ${monthLabel(S.month)}\n\nStudents: ${cm.N}\nWorking days: ${cm.W}\nClass average: ${pct(cm.avg)}\nFull-day absences: ${cm.full} | Half-day: ${cm.half} | Leave days: ${cm.ldays}\nFine due: Rs ${cm.fine} | Collected: Rs ${collected}\n\nBelow ${Math.round(c.minPct*100)}% (${per}): ${scopeRows.length}\n${scopeRows.map((r,i)=>`${i+1}. ${r.st.name} (Roll ${r.st.roll}) – ${pct(r.x.pct)}, short ${fmtS(daysShort(r.x.present,r.x.W,c.minPct))} days, needs ${daysNeeded(r.x.present,r.x.W,c.minPct)} days in a row`).join("\n")||"None"}\n\n— ${c.teacher}, Class Teacher`;
     copyText(t)};
   const mc=v.querySelector('#mchips [aria-pressed="true"]');if(mc)mc.scrollIntoView({inline:"center",block:"nearest"});
 }
@@ -464,7 +466,7 @@ function parentMsg(st,day){const c=C(),k=S.classes.find(x=>x.id===S.cid)||{},sig
   const x=statsFor(st.roll,PM.ym),ss=sessionStats(st.roll),f=n=>n%1?n.toFixed(1):n,pd=paidOn(PM.ym,st.roll);
   let t="Dear Parent,\nAttendance report of "+who+" for "+monthLabel(PM.ym)+":\n• Present: "+f(x.present)+" of "+x.W+" working days ("+pct(x.pct)+")\n• Absent: "+x.full+" full day, "+x.half+" half day"+(x.ldays?"\n• Leave: "+f(x.ldays)+" day(s)":"")+"\n• Session attendance so far: "+pct(ss.pct);
   if(x.fine)t+="\n• Fine: Rs "+x.fine+(pd?" (paid)":" (pending)");
-  if(ss.pct!=null&&ss.pct<c.minPct)t+="\n\n⚠ Attendance is below "+Math.round(c.minPct*100)+"%. "+daysNeeded(ss.present,ss.W,c.minPct)+" more days of full attendance are needed to reach "+Math.round(c.minPct*100)+"%.";
+  if(ss.pct!=null&&ss.pct<c.minPct)t+="\n\n⚠ Attendance is below "+Math.round(c.minPct*100)+"%. Short by "+fmtS(daysShort(ss.present,ss.W,c.minPct))+" days. "+daysNeeded(ss.present,ss.W,c.minPct)+" days of full attendance in a row are needed to reach "+Math.round(c.minPct*100)+"%.";
   return t+sign}
 function pmRows(){const day=PM.date;return S.students.slice().sort((a,b)=>a.roll-b.roll).filter(st=>PM.mode!=="daily"||!PM.onlyAbs||dailyInfo(st.roll,day).abs)}
 function openParentMsgs(mode){if(!S.students.length){toast("No students in this class");return}
@@ -521,9 +523,9 @@ function printFineList(ym){const c=C(),cm=classMonth(ym),rows=fineRows(ym);
   <tr class="tot"><td colspan="6">Total (${rows.length} students)</td><td class="c">${cm.fine}</td><td colspan="3" class="c">Collected Rs ${coll} • Pending Rs ${cm.fine-coll}</td></tr></tbody></table>`:`<p>No fines for ${monthLabel(ym)}.</p>`);
   printHTML(listPage("Fine Collection List",ym,body))}
 function printShortageList(ym){const c=C(),rows=shortageList(ym),fx=v=>v%1?v.toFixed(1):v,m=Math.round(c.minPct*100);
-  const body=`<div class="small">Students below ${m}% in ${monthLabel(ym)} or for the session so far.</div>`+(rows.length?`<table><thead><tr><th>Sl</th><th>Roll</th><th>Student Name</th><th>Month days</th><th>Month %</th><th>Session days</th><th>Session %</th><th>Days needed</th><th>Parent</th><th>Phone</th></tr></thead><tbody>
-  ${rows.map((r,i)=>`<tr><td class="c">${i+1}</td><td class="c">${r.st.roll}</td><td>${esc(r.st.name)}</td><td class="c">${fx(r.m.present)}/${r.m.W}</td><td class="c ${r.m.pct!=null&&r.m.pct<c.minPct?"low":""}">${pct(r.m.pct)}</td><td class="c">${fx(r.s.present)}/${r.s.W}</td><td class="c ${r.s.pct!=null&&r.s.pct<c.minPct?"low":""}">${pct(r.s.pct)}</td><td class="c">${daysNeeded(r.s.present,r.s.W,c.minPct)||"–"}</td><td>${esc(r.st.parent)}</td><td>${esc(r.st.phone)}</td></tr>`).join("")}</tbody></table>
-  <div class="small">“Days needed” = days of full attendance needed to bring the session % up to ${m}%. Total: ${rows.length} students.</div>`:`<p>No student is below ${m}%.</p>`);
+  const body=`<div class="small">Students below ${m}% in ${monthLabel(ym)} or for the session so far.</div>`+(rows.length?`<table><thead><tr><th>Sl</th><th>Roll</th><th>Student Name</th><th>Month days</th><th>Month %</th><th>Session days</th><th>Session %</th><th>Short</th><th>In a row</th><th>Parent</th><th>Phone</th></tr></thead><tbody>
+  ${rows.map((r,i)=>`<tr><td class="c">${i+1}</td><td class="c">${r.st.roll}</td><td>${esc(r.st.name)}</td><td class="c">${fx(r.m.present)}/${r.m.W}</td><td class="c ${r.m.pct!=null&&r.m.pct<c.minPct?"low":""}">${pct(r.m.pct)}</td><td class="c">${fx(r.s.present)}/${r.s.W}</td><td class="c ${r.s.pct!=null&&r.s.pct<c.minPct?"low":""}">${pct(r.s.pct)}</td><td class="c">${fmtS(daysShort(r.s.present,r.s.W,c.minPct))||"–"}</td><td class="c">${daysNeeded(r.s.present,r.s.W,c.minPct)||"–"}</td><td>${esc(r.st.parent)}</td><td>${esc(r.st.phone)}</td></tr>`).join("")}</tbody></table>
+  <div class="small">“Short” = days missing from ${m}% (session). “In a row” = full days to attend from today, without a break, to reach ${m}%. Total: ${rows.length} students.</div>`:`<p>No student is below ${m}%.</p>`);
   printHTML(listPage("Shortage of Attendance (below "+m+"%)",ym,body))}
 function csvHead(title,ym){const c=C(),k=S.classes.find(x=>x.id===S.cid)||{};const q=v=>'"'+String(v??"").replace(/"/g,'""')+'"';return [q(c.school||"St. James H.S. School"),q(title+" - "+monthLabel(ym)),q(classLabel(k)+(k.teacher?" - Class teacher: "+k.teacher:"")),""]}
 function csvName(t,ym){const k=S.classes.find(x=>x.id===S.cid)||{};return t+"_"+(k.cls||"")+(k.section?"-"+k.section:"")+"_"+ym+".csv"}
@@ -534,8 +536,8 @@ function downloadFineList(ym){const q=v=>'"'+String(v??"").replace(/"/g,'""')+'"
   saveFile(csvName("Fine_List",ym),"﻿"+out.join("\n"),"text/csv");toast("Fine list downloaded")}
 function downloadShortageList(ym){const c=C(),q=v=>'"'+String(v??"").replace(/"/g,'""')+'"';
   const out=csvHead("Shortage of Attendance (below "+Math.round(c.minPct*100)+"%)",ym);
-  out.push(["Sl","Roll","Student Name","Month present","Month working","Month %","Session present","Session working","Session %","Days needed","Parent","Phone"].map(q).join(","));
-  shortageList(ym).forEach((r,i)=>out.push([i+1,r.st.roll,q(r.st.name),r.m.present,r.m.W,r.m.pct==null?"":(r.m.pct*100).toFixed(1),r.s.present,r.s.W,r.s.pct==null?"":(r.s.pct*100).toFixed(1),daysNeeded(r.s.present,r.s.W,c.minPct),q(r.st.parent),q(r.st.phone?"'"+r.st.phone:"")].join(",")));
+  out.push(["Sl","Roll","Student Name","Month present","Month working","Month %","Session present","Session working","Session %","Short","In a row","Parent","Phone"].map(q).join(","));
+  shortageList(ym).forEach((r,i)=>out.push([i+1,r.st.roll,q(r.st.name),r.m.present,r.m.W,r.m.pct==null?"":(r.m.pct*100).toFixed(1),r.s.present,r.s.W,r.s.pct==null?"":(r.s.pct*100).toFixed(1),daysShort(r.s.present,r.s.W,c.minPct),daysNeeded(r.s.present,r.s.W,c.minPct),q(r.st.parent),q(r.st.phone?"'"+r.st.phone:"")].join(",")));
   saveFile(csvName("Shortage_List",ym),"﻿"+out.join("\n"),"text/csv");toast("Shortage list downloaded")}
 function printMonthlyReport(ym){
   const c=C(),k=S.classes.find(x=>x.id===S.cid)||{},cm=classMonth(ym),n=daysIn(ym);
@@ -584,9 +586,9 @@ function printMonthlyReport(ym){
   <tr class="tot"><td colspan="6">Total</td><td class="c">${cm.fine}</td><td colspan="2" class="c">Collected Rs ${collected} • Pending Rs ${cm.fine-collected}</td></tr></tbody></table>`:`<p>No fines for this month.</p>`}</div>
   <div><div class="ttl">SHORTAGE OF ATTENDANCE (BELOW ${Math.round(c.minPct*100)}%)</div>
   <div class="small">Students below ${Math.round(c.minPct*100)}% this month or for the session so far</div>
-  ${short.length?`<table class="lst"><thead><tr><th>Sl</th><th>Roll</th><th>Student Name</th><th>${monthLabel(ym)}</th><th>Month %</th><th>Session</th><th>Session %</th><th>Days needed</th><th>Parent / Phone</th></tr></thead><tbody>
-  ${short.map((r,i)=>`<tr><td class="c">${i+1}</td><td class="c">${r.st.roll}</td><td>${esc(r.st.name)}</td><td class="c">${fx(r.m.present)}/${r.m.W}</td><td class="c ${r.m.pct!=null&&r.m.pct<c.minPct?"low":""}">${pct(r.m.pct)}</td><td class="c">${fx(r.s.present)}/${r.s.W}</td><td class="c ${r.s.pct!=null&&r.s.pct<c.minPct?"low":""}">${pct(r.s.pct)}</td><td class="c">${daysNeeded(r.s.present,r.s.W,c.minPct)||"–"}</td><td>${esc([r.st.parent,r.st.phone].filter(Boolean).join(", "))}</td></tr>`).join("")}</tbody></table>
-  <div class="small">“Days needed” = days of full attendance needed to bring the session % up to ${Math.round(c.minPct*100)}%.</div>`:`<p>No student is below ${Math.round(c.minPct*100)}%.</p>`}</div>
+  ${short.length?`<table class="lst"><thead><tr><th>Sl</th><th>Roll</th><th>Student Name</th><th>${monthLabel(ym)}</th><th>Month %</th><th>Session</th><th>Session %</th><th>Short</th><th>In a row</th><th>Parent / Phone</th></tr></thead><tbody>
+  ${short.map((r,i)=>`<tr><td class="c">${i+1}</td><td class="c">${r.st.roll}</td><td>${esc(r.st.name)}</td><td class="c">${fx(r.m.present)}/${r.m.W}</td><td class="c ${r.m.pct!=null&&r.m.pct<c.minPct?"low":""}">${pct(r.m.pct)}</td><td class="c">${fx(r.s.present)}/${r.s.W}</td><td class="c ${r.s.pct!=null&&r.s.pct<c.minPct?"low":""}">${pct(r.s.pct)}</td><td class="c">${fmtS(daysShort(r.s.present,r.s.W,c.minPct))||"–"}</td><td class="c">${daysNeeded(r.s.present,r.s.W,c.minPct)||"–"}</td><td>${esc([r.st.parent,r.st.phone].filter(Boolean).join(", "))}</td></tr>`).join("")}</tbody></table>
+  <div class="small">“Short” = days missing from ${Math.round(c.minPct*100)}% (session). “In a row” = full days to attend from today, without a break, to reach ${Math.round(c.minPct*100)}%.</div>`:`<p>No student is below ${Math.round(c.minPct*100)}%.</p>`}</div>
   </div>
   <div class="sign"><div>Class Teacher</div><div>Checked by</div><div>Principal${c.principal?"<br>"+esc(c.principal):""}</div></div>
   </body></html>`;
@@ -602,8 +604,8 @@ function downloadMonthlyReport(ym){
   out.push("","",q("FINE COLLECTION - "+monthLabel(ym)),["Sl","Roll","Student Name","Full","Half","Leave","Fine Rs","Paid on","Status"].map(q).join(","));
   cm.rows.filter(r=>r.x.fine>0).sort((a,b)=>a.st.roll-b.st.roll).forEach((r,i)=>{const pd=paidOn(ym,r.st.roll);out.push([i+1,r.st.roll,q(r.st.name),r.x.full,r.x.half,r.x.ldays,r.x.fine,q(pd?pd.split("-").reverse().join("-"):""),q(pd?"Paid":"Pending")].join(","))});
   out.push(["","","Total","","","",cm.fine,q("Collected Rs "+coll),q("Pending Rs "+(cm.fine-coll))].join(","));
-  out.push("","",q("SHORTAGE OF ATTENDANCE (below "+Math.round(c.minPct*100)+"%)"),["Sl","Roll","Student Name","Month present","Month working","Month %","Session present","Session working","Session %","Days needed","Parent","Phone"].map(q).join(","));
-  shortageList(ym).forEach((r,i)=>out.push([i+1,r.st.roll,q(r.st.name),r.m.present,r.m.W,r.m.pct==null?"":(r.m.pct*100).toFixed(1),r.s.present,r.s.W,r.s.pct==null?"":(r.s.pct*100).toFixed(1),daysNeeded(r.s.present,r.s.W,c.minPct),q(r.st.parent),q(r.st.phone?"'"+r.st.phone:"")].join(",")));
+  out.push("","",q("SHORTAGE OF ATTENDANCE (below "+Math.round(c.minPct*100)+"%)"),["Sl","Roll","Student Name","Month present","Month working","Month %","Session present","Session working","Session %","Short","In a row","Parent","Phone"].map(q).join(","));
+  shortageList(ym).forEach((r,i)=>out.push([i+1,r.st.roll,q(r.st.name),r.m.present,r.m.W,r.m.pct==null?"":(r.m.pct*100).toFixed(1),r.s.present,r.s.W,r.s.pct==null?"":(r.s.pct*100).toFixed(1),daysShort(r.s.present,r.s.W,c.minPct),daysNeeded(r.s.present,r.s.W,c.minPct),q(r.st.parent),q(r.st.phone?"'"+r.st.phone:"")].join(",")));
   saveFile("Monthly_Report_"+(k.cls||"")+(k.section?"-"+k.section:"")+"_"+ym+".csv","﻿"+out.join("\n"),"text/csv");toast("Monthly report downloaded");
 }
 function printStudentList(){
@@ -651,7 +653,7 @@ function openStudent(roll){
   openSheet(`<div class="row between"><div><h2>${esc(st.name)}</h2><div class="small muted">Roll ${st.roll} • ${esc(st.adm||"")} • Class ${esc(c.cls)}</div></div><button class="iconbtn" data-close aria-label="Close">✕</button></div>
   <div class="kpis"><div class="kpi ${ses.pct!=null&&ses.pct<c.minPct?"k-bad":"k-good"}"><div class="label">Session</div><b>${pct(ses.pct)}</b><div class="small muted">${ses.present.toFixed(1)} of ${ses.W} days</div></div>
   <div class="kpi k-gold"><div class="label">Fines</div><b>Rs ${ses.fine}</b><div class="small muted">Full ${ses.full} • Half ${ses.half}</div></div></div>
-  ${ses.pct!=null&&ses.pct<c.minPct?`<div class="banner warn">Needs ${daysNeeded(ses.present,ses.W,c.minPct)} more days of full attendance to reach ${Math.round(c.minPct*100)}%.</div>`:""}
+  ${ses.pct!=null&&ses.pct<c.minPct?`<div class="banner warn">Short by ${fmtS(daysShort(ses.present,ses.W,c.minPct))} days. Needs ${daysNeeded(ses.present,ses.W,c.minPct)} days of full attendance in a row to reach ${Math.round(c.minPct*100)}%.</div>`:""}
   <div class="card tablewrap"><table><thead><tr><th>Month</th><th>Days</th><th>Full A</th><th>Half</th><th>Leave</th><th>%</th><th>Fine</th></tr></thead><tbody>
   ${rows.map(r=>`<tr><td>${monthLabel(r.m)}</td><td>${r.x.present.toFixed(1)}/${r.x.W}</td><td>${r.x.full||"–"}</td><td>${r.x.half||"–"}</td><td>${r.x.ldays||"–"}</td><td class="${r.x.pct<c.minPct?"pct-low":""}">${pct(r.x.pct)}</td><td>${r.x.fine||"–"}${r.x.fine?(paidOn(r.m,roll)?" ✓":""):""}</td></tr>`).join("")}</tbody></table></div>
   ${st.parent||st.phone?`<div class="card"><div class="label">Parent / Guardian</div><div style="font-weight:600;margin-top:4px">${esc(st.parent||"")}</div><div class="row" style="margin-top:6px"><span style="user-select:all;font-variant-numeric:tabular-nums">${esc(st.phone||"")}</span>${st.phone?`<button class="btn ghost sm" id="cpPhone">Copy number</button>`:""}</div></div>`:""}
